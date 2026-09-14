@@ -107,9 +107,9 @@ export default function ItemPage() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] animate-rise">
+    <div className="grid gap-5 animate-rise sm:gap-8 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-3">
-        <div className="overflow-hidden rounded-3xl bg-mist">
+        <div className="-mx-3 overflow-hidden bg-mist sm:mx-0 sm:rounded-3xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.media[0]?.url}
@@ -117,34 +117,38 @@ export default function ItemPage() {
             className="aspect-square w-full object-cover"
           />
         </div>
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
           {item.media.map((m) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={m.url}
               src={m.url}
               alt=""
-              className="h-20 w-20 rounded-xl object-cover ring-1 ring-forest/10"
+              className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-forest/10 sm:h-20 sm:w-20"
             />
           ))}
         </div>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4 sm:space-y-5">
         <div>
-          <p className="text-sm text-ink/50">
+          <p className="text-xs text-ink/50 sm:text-sm">
             {item.category}
             {item.subcategory ? ` · ${item.subcategory}` : ""}
             {item.brand ? ` · ${item.brand}` : ""}
           </p>
-          <h1 className="font-display text-3xl text-forest">{item.title}</h1>
+          <h1 className="font-display text-2xl leading-tight text-forest sm:text-3xl">
+            {item.title}
+          </h1>
           <p className="mt-2 text-sm text-ink/60">
             {item.condition} · {item.city}
             {item.district ? `, ${item.district}` : ""}
           </p>
         </div>
 
-        <p className="whitespace-pre-wrap text-ink/80">{item.description}</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/80 sm:text-base">
+          {item.description}
+        </p>
 
         {(item.hasDamage || item.damageNotes) && (
           <div className="rounded-xl bg-coral/10 p-3 text-sm text-coral">
@@ -177,11 +181,11 @@ export default function ItemPage() {
           <ReportButton targetUserId={item.owner.id} itemId={item.id} />
         </Link>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <button
             type="button"
             onClick={toggleFav}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-forest/15"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm ring-1 ring-forest/15"
           >
             <Heart
               size={16}
@@ -196,7 +200,7 @@ export default function ItemPage() {
                 if (!user) return router.push("/login");
                 setOfferOpen(true);
               }}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-coral px-4 py-3 text-sm font-semibold text-white"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-coral px-4 py-3 text-sm font-semibold text-white"
             >
               <RefreshCw size={16} />
               Предложить обмен

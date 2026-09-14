@@ -19,6 +19,22 @@ export const metadata: Metadata = {
   title: "SwapToy — безопасный обмен игрушками",
   description:
     "Платформа обмена игрушками и детскими аксессуарами без денег, продаж и доплат.",
+  appleWebApp: {
+    capable: true,
+    title: "SwapToy",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#1a5f4a",
 };
 
 export default function RootLayout({

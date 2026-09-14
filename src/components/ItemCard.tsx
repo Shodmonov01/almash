@@ -31,7 +31,7 @@ export function ItemCard({ item }: { item: ItemCardData }) {
   return (
     <Link
       href={`/items/${item.id}`}
-      className="group block overflow-hidden rounded-2xl bg-white/70 shadow-[0_8px_30px_rgba(26,95,74,0.08)] ring-1 ring-forest/5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(26,95,74,0.14)]"
+      className="group block overflow-hidden rounded-2xl bg-white/70 shadow-[0_8px_30px_rgba(26,95,74,0.08)] ring-1 ring-forest/5 transition active:scale-[0.99] hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(26,95,74,0.14)]"
     >
       <div className="relative aspect-square overflow-hidden bg-mist">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -41,33 +41,36 @@ export function ItemCard({ item }: { item: ItemCardData }) {
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
       </div>
-      <div className="space-y-2 p-3">
-        <p className="font-medium text-forest line-clamp-2">{item.title}</p>
+      <div className="space-y-2 p-2.5 sm:space-y-2 sm:p-3">
+        <p className="text-sm font-medium leading-snug text-forest line-clamp-2 sm:text-base">
+          {item.title}
+        </p>
         {typeof item.matchScore === "number" && (
-          <p className="text-[11px] text-coral">
+          <p className="text-[10px] leading-tight text-coral sm:text-[11px]">
             Match {item.matchScore}
             {item.matchReasons?.length
               ? ` · ${item.matchReasons.slice(0, 2).join(", ")}`
               : ""}
           </p>
         )}
-        <div className="flex flex-wrap gap-2 text-xs text-ink/60">
-          <span>{item.condition}</span>
-          <span>·</span>
-          <span>
+        <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] text-ink/60 sm:gap-2 sm:text-xs">
+          <span className="line-clamp-1">{item.condition}</span>
+          <span className="hidden sm:inline">·</span>
+          <span className="line-clamp-1">
             {item.city}
             {item.district ? `, ${item.district}` : ""}
           </span>
         </div>
         {item.wantText && (
-          <p className="text-xs text-forest/80 line-clamp-2">
+          <p className="hidden text-xs text-forest/80 line-clamp-2 sm:block">
             <span className="font-medium">Хочу:</span> {item.wantText}
           </p>
         )}
-        <div className="flex items-center justify-between gap-2 border-t border-forest/5 pt-2 text-xs">
-          <span className="text-ink/70">{item.owner.name}</span>
-          <span className="text-ink/50">
-            ★ {item.owner.rating.toFixed(1)} · {trust}
+        <div className="flex items-center justify-between gap-1 border-t border-forest/5 pt-2 text-[11px] sm:gap-2 sm:text-xs">
+          <span className="truncate text-ink/70">{item.owner.name}</span>
+          <span className="shrink-0 text-ink/50">
+            ★ {item.owner.rating.toFixed(1)}
+            <span className="hidden sm:inline"> · {trust}</span>
           </span>
         </div>
       </div>

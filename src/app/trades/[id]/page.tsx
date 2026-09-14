@@ -160,17 +160,19 @@ export default function TradeDetailPage() {
   const hasMyReview = trade.reviews.some((r) => r.authorId === user.id);
 
   return (
-    <div className="space-y-6 animate-rise">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="space-y-4 animate-rise sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm text-ink/50">Сделка</p>
-          <h1 className="font-display text-3xl text-forest">{trade.publicId}</h1>
+          <h1 className="break-all font-display text-2xl text-forest sm:text-3xl">
+            {trade.publicId}
+          </h1>
           <p className="text-sm text-ink/60">
             {TRADE_STATUS_LABELS[trade.status] || trade.status} · версия{" "}
             {trade.currentVersion}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 sm:justify-end">
           <ReportButton
             tradeId={trade.id}
             targetUserId={
@@ -190,23 +192,23 @@ export default function TradeDetailPage() {
       )}
 
       {/* Contract */}
-      <section className="grid gap-4 rounded-3xl bg-white/80 p-5 ring-1 ring-forest/10 md:grid-cols-2">
+      <section className="grid gap-4 rounded-2xl bg-white/80 p-4 ring-1 ring-forest/10 sm:rounded-3xl sm:p-5 md:grid-cols-2">
         <div>
-          <h2 className="font-display text-xl text-forest">Сторона A отдаёт</h2>
+          <h2 className="font-display text-lg text-forest sm:text-xl">Сторона A отдаёт</h2>
           <ItemList items={sideA} />
         </div>
         <div>
-          <h2 className="font-display text-xl text-forest">Сторона B отдаёт</h2>
+          <h2 className="font-display text-lg text-forest sm:text-xl">Сторона B отдаёт</h2>
           <ItemList items={sideB} />
         </div>
-        <p className="md:col-span-2 text-sm text-ink/60">
+        <p className="text-sm text-ink/60 md:col-span-2">
           Условие: обмен производится одновременно. Денег в сделке нет и быть не
           может.
         </p>
       </section>
 
       {/* Actions */}
-      <section className="flex flex-wrap gap-2">
+      <section className="stack-actions">
         {isRecipient && ["OFFER_SENT", "NEGOTIATION"].includes(trade.status) && (
           <>
             <Btn onClick={() => act({ action: "accept" })}>Принять</Btn>
@@ -314,8 +316,8 @@ export default function TradeDetailPage() {
 
       {/* QR / code confirmation */}
       {canHandoff && (
-        <section className="space-y-3 rounded-3xl bg-forest p-5 text-cream">
-          <h2 className="font-display text-xl">Подтверждение передачи</h2>
+        <section className="space-y-3 rounded-2xl bg-forest p-4 text-cream sm:rounded-3xl sm:p-5">
+          <h2 className="font-display text-lg sm:text-xl">Подтверждение передачи</h2>
           <p className="text-sm text-cream/80">
             Нужны подтверждения обеих сторон. Один клик сделку не завершает.
           </p>
@@ -324,15 +326,14 @@ export default function TradeDetailPage() {
               <p className="text-xs uppercase tracking-wide text-cream/60">
                 Ваш код для другой стороны
               </p>
-              <p className="mt-2 font-display text-4xl tracking-widest">{myCode}</p>
+              <p className="mt-2 font-display text-3xl tracking-widest sm:text-4xl">{myCode}</p>
               {trade.qrToken && (
                 <div className="mt-3 rounded-xl bg-cream p-3 text-center text-forest">
-                  {/* Simple QR stand-in via API image */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(trade.qrToken)}`}
                     alt="QR сделки"
-                    className="mx-auto"
+                    className="mx-auto h-32 w-32 sm:h-40 sm:w-40"
                   />
                   <p className="mt-2 text-xs">QR сделки {trade.publicId}</p>
                 </div>
@@ -344,7 +345,8 @@ export default function TradeDetailPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="Код"
-                className="w-full rounded-xl border-0 px-3 py-2 text-ink"
+                inputMode="numeric"
+                className="w-full rounded-xl border-0 px-3 py-3 text-ink"
               />
               <Btn
                 onClick={() => act({ action: "confirm_handoff", code })}
@@ -371,11 +373,11 @@ export default function TradeDetailPage() {
       )}
 
       {/* Chat */}
-      <section className="rounded-3xl bg-white/80 ring-1 ring-forest/10">
+      <section className="rounded-2xl bg-white/80 ring-1 ring-forest/10 sm:rounded-3xl">
         <div className="border-b border-forest/10 px-4 py-3 font-medium">
           Чат сделки
         </div>
-        <div className="max-h-80 space-y-2 overflow-y-auto p-4">
+        <div className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-contain p-3 sm:max-h-80 sm:p-4">
           {messages.map((m) => (
             <div
               key={m.id}
@@ -383,8 +385,8 @@ export default function TradeDetailPage() {
                 m.system
                   ? "text-center text-xs text-ink/45"
                   : m.sender.id === user.id
-                    ? "ml-8 rounded-2xl bg-forest px-3 py-2 text-sm text-cream"
-                    : "mr-8 rounded-2xl bg-mist/70 px-3 py-2 text-sm"
+                    ? "ml-6 rounded-2xl bg-forest px-3 py-2 text-sm text-cream sm:ml-8"
+                    : "mr-6 rounded-2xl bg-mist/70 px-3 py-2 text-sm sm:mr-8"
               }
             >
               {!m.system && (
@@ -398,18 +400,21 @@ export default function TradeDetailPage() {
           ))}
         </div>
         {!["COMPLETED", "CANCELLED", "BLOCKED"].includes(trade.status) && (
-          <form onSubmit={sendMsg} className="flex gap-2 border-t border-forest/10 p-3">
+          <form
+            onSubmit={sendMsg}
+            className="flex gap-2 border-t border-forest/10 p-3"
+          >
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Сообщение (без денег и карт)"
-              className="flex-1 rounded-xl border border-forest/15 px-3 py-2 text-sm"
+              placeholder="Сообщение (без денег)"
+              className="min-w-0 flex-1 rounded-xl border border-forest/15 px-3 py-3 text-sm"
             />
             <button
               type="submit"
-              className="rounded-xl bg-forest px-4 py-2 text-sm text-cream"
+              className="shrink-0 rounded-xl bg-forest px-4 py-3 text-sm text-cream"
             >
-              Отправить
+              →
             </button>
           </form>
         )}
@@ -576,7 +581,7 @@ function Btn({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-4 py-2 text-sm font-medium ${cls}`}
+      className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium sm:w-auto ${cls}`}
     >
       {children}
     </button>

@@ -34,10 +34,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 animate-rise">
-      <div className="rounded-3xl bg-forest p-8 text-cream">
-        <h1 className="font-display text-3xl">Вход в SwapToy</h1>
-        <p className="mt-2 text-cream/80">
+    <div className="mx-auto max-w-lg space-y-4 animate-rise sm:space-y-6">
+      <div className="rounded-2xl bg-forest p-5 text-cream sm:rounded-3xl sm:p-8">
+        <h1 className="font-display text-2xl sm:text-3xl">Вход в SwapToy</h1>
+        <p className="mt-2 text-sm text-cream/80 sm:text-base">
           MVP-авторизация имитирует Telegram Mini App: выберите демо-профиль.
           Пароли не используются.
         </p>
@@ -47,29 +47,29 @@ export default function LoginPage() {
         <p className="rounded-xl bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {users.map((u) => (
           <button
             key={u.id}
             type="button"
             disabled={busy}
             onClick={() => onPick(u.username!)}
-            className="flex w-full items-center gap-4 rounded-2xl bg-white/80 p-4 text-left ring-1 ring-forest/10 transition hover:ring-forest/30 disabled:opacity-60"
+            className="flex min-h-[4.5rem] w-full items-center gap-3 rounded-2xl bg-white/80 p-3 text-left ring-1 ring-forest/10 transition active:scale-[0.99] hover:ring-forest/30 disabled:opacity-60 sm:gap-4 sm:p-4"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={u.avatarUrl || ""}
               alt=""
-              className="h-12 w-12 rounded-full object-cover"
+              className="h-12 w-12 shrink-0 rounded-full object-cover"
             />
-            <div>
+            <div className="min-w-0">
               <p className="font-medium">
                 {u.name}{" "}
                 {u.role === "ADMIN" && (
                   <span className="text-xs text-coral">admin</span>
                 )}
               </p>
-              <p className="text-sm text-ink/55">
+              <p className="truncate text-sm text-ink/55">
                 @{u.username} · {u.city} · {u.trustLevel}
               </p>
             </div>

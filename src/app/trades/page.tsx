@@ -50,16 +50,16 @@ export default function TradesPage() {
               <Link
                 key={t.id}
                 href={`/trades/${t.id}`}
-                className="flex gap-4 rounded-2xl bg-white/80 p-4 ring-1 ring-forest/10 transition hover:ring-forest/30"
+                className="flex gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 transition active:scale-[0.99] hover:ring-forest/30 sm:gap-4 sm:p-4"
               >
-                <div className="flex -space-x-2">
+                <div className="flex shrink-0 -space-x-2">
                   {t.items.slice(0, 3).map((ti, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
                       src={ti.item.media[0]?.url || "https://placehold.co/80"}
                       alt=""
-                      className="h-14 w-14 rounded-xl object-cover ring-2 ring-cream"
+                      className="h-12 w-12 rounded-xl object-cover ring-2 ring-cream sm:h-14 sm:w-14"
                     />
                   ))}
                 </div>
@@ -69,7 +69,7 @@ export default function TradesPage() {
                     с {other?.name || "—"} ·{" "}
                     {TRADE_STATUS_LABELS[t.status] || t.status}
                   </p>
-                  <p className="mt-1 truncate text-xs text-ink/45">
+                  <p className="mt-1 line-clamp-2 text-xs text-ink/45">
                     {t.items.map((i) => i.item.title).join(" ⇄ ")}
                   </p>
                 </div>

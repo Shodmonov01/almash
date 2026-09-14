@@ -55,13 +55,13 @@ export default function MatchesPage() {
           {matches.map((m, i) => (
             <div
               key={i}
-              className="flex flex-wrap items-center gap-4 rounded-2xl bg-white/80 p-4 ring-1 ring-forest/10"
+              className="flex flex-col gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:p-4"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
                 alt=""
-                className="h-16 w-16 rounded-xl object-cover"
+                className="h-20 w-full rounded-xl object-cover sm:h-16 sm:w-16"
               />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-coral">
@@ -82,7 +82,7 @@ export default function MatchesPage() {
               </div>
               <Link
                 href={`/items/${m.theirItem.id}`}
-                className="rounded-xl bg-forest px-4 py-2 text-sm text-cream"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-forest px-4 py-2 text-sm text-cream sm:w-auto"
               >
                 Открыть
               </Link>

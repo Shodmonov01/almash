@@ -31,7 +31,7 @@ export default function AdminPage() {
   return (
     <div className="space-y-6 animate-rise">
       <h1 className="font-display text-3xl text-forest">Админ-панель</h1>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
         {["overview", "users", "items", "trades", "disputes", "reports", "moderation"].map(
           (t) => (
             <button
@@ -40,8 +40,8 @@ export default function AdminPage() {
               onClick={() => setTab(t)}
               className={
                 tab === t
-                  ? "rounded-lg bg-coral px-3 py-1.5 text-sm text-white"
-                  : "rounded-lg bg-white px-3 py-1.5 text-sm ring-1 ring-forest/10"
+                  ? "shrink-0 rounded-lg bg-coral px-3 py-2 text-sm text-white"
+                  : "shrink-0 rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-forest/10"
               }
             >
               {t}
@@ -50,7 +50,7 @@ export default function AdminPage() {
         )}
         <button
           type="button"
-          className="rounded-lg bg-forest px-3 py-1.5 text-sm text-cream"
+          className="shrink-0 rounded-lg bg-forest px-3 py-2 text-sm text-cream"
           onClick={() => run({ action: "run_jobs" })}
         >
           Run jobs

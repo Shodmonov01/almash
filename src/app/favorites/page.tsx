@@ -33,7 +33,7 @@ export default function FavoritesPage() {
           Пусто. <Link href="/" className="text-coral underline">Найти обмен</Link>
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {items.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}

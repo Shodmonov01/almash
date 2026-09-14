@@ -46,19 +46,19 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-forest-deep/50 p-4 sm:items-center">
-        <div className="w-full max-w-md animate-rise rounded-3xl bg-cream p-6 shadow-2xl">
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-forest-deep/50 p-3 sm:items-center sm:p-4">
+        <div className="w-full max-w-md animate-rise rounded-t-3xl bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl sm:p-6 sm:pb-6">
           <p className="text-xs uppercase tracking-wide text-coral">
             Добро пожаловать · {step + 1}/{TIPS.length}
           </p>
-          <h2 className="mt-2 font-display text-2xl text-forest">{tip.title}</h2>
+          <h2 className="mt-2 font-display text-xl text-forest sm:text-2xl">{tip.title}</h2>
           <p className="mt-2 text-sm text-ink/70">{tip.body}</p>
-          <div className="mt-6 flex gap-2">
+          <div className="mt-5 flex flex-col gap-2 sm:mt-6 sm:flex-row">
             {step < TIPS.length - 1 ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
-                className="flex-1 rounded-xl bg-coral py-3 text-sm font-semibold text-white"
+                className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-coral py-3 text-sm font-semibold text-white"
               >
                 Дальше
               </button>
@@ -66,7 +66,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
               <button
                 type="button"
                 onClick={finish}
-                className="flex-1 rounded-xl bg-coral py-3 text-sm font-semibold text-white"
+                className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-coral py-3 text-sm font-semibold text-white"
               >
                 Понятно, начать
               </button>
@@ -74,7 +74,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
             <Link
               href="/items/new"
               onClick={finish}
-              className="rounded-xl bg-forest/10 px-4 py-3 text-sm text-forest"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-forest/10 px-4 py-3 text-sm text-forest"
             >
               Добавить игрушку
             </Link>

@@ -37,33 +37,47 @@ export default function ProfilePage() {
     user.trustLevel;
 
   return (
-    <div className="space-y-8 animate-rise">
-      <section className="flex flex-wrap items-center gap-4 rounded-3xl bg-forest p-6 text-cream">
+    <div className="space-y-6 animate-rise sm:space-y-8">
+      <section className="flex flex-col gap-4 rounded-2xl bg-forest p-4 text-cream sm:flex-row sm:flex-wrap sm:items-center sm:rounded-3xl sm:p-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={user.avatarUrl || ""}
           alt=""
-          className="h-20 w-20 rounded-full object-cover ring-4 ring-cream/20"
+          className="h-16 w-16 rounded-full object-cover ring-4 ring-cream/20 sm:h-20 sm:w-20"
         />
-        <div className="flex-1">
-          <h1 className="font-display text-3xl">{user.name}</h1>
-          <p className="text-cream/70">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-2xl sm:text-3xl">{user.name}</h1>
+          <p className="text-sm text-cream/70">
             @{user.username} · {user.city} · {trust}
           </p>
           <p className="mt-1 text-sm text-cream/60">
             ★ {(user.rating ?? 0).toFixed(1)} · {user.completedTrades ?? 0} обменов
           </p>
         </div>
-        <button
-          type="button"
-          onClick={async () => {
-            await logout();
-            router.push("/login");
-          }}
-          className="rounded-xl bg-cream/15 px-4 py-2 text-sm"
-        >
-          Выйти
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/favorites"
+            className="inline-flex min-h-10 items-center rounded-xl bg-cream/15 px-4 py-2 text-sm"
+          >
+            Избранное
+          </Link>
+          <Link
+            href="/notifications"
+            className="inline-flex min-h-10 items-center rounded-xl bg-cream/15 px-4 py-2 text-sm"
+          >
+            Алерты
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await logout();
+              router.push("/login");
+            }}
+            className="inline-flex min-h-10 items-center rounded-xl bg-cream/15 px-4 py-2 text-sm"
+          >
+            Выйти
+          </button>
+        </div>
       </section>
 
       <section className="space-y-3">
@@ -92,7 +106,7 @@ export default function ProfilePage() {
             + Добавить
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {items.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}

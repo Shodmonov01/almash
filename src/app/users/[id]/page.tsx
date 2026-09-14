@@ -67,7 +67,7 @@ export default function PublicProfilePage() {
 
       <section className="space-y-3">
         <h2 className="font-display text-2xl">Объявления</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {items.map((item) => (
             <ItemCard
               key={item.id}

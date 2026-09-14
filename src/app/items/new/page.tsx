@@ -107,10 +107,10 @@ export default function NewItemPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 animate-rise">
+    <div className="mx-auto max-w-2xl space-y-4 animate-rise sm:space-y-6">
       <div>
-        <h1 className="font-display text-3xl text-forest">Добавить предмет</h1>
-        <p className="mt-1 text-ink/60">
+        <h1 className="font-display text-2xl text-forest sm:text-3xl">Добавить предмет</h1>
+        <p className="mt-1 text-sm text-ink/60">
           Укажите все существенные дефекты. Деньги, цены и доплаты запрещены.
         </p>
       </div>
@@ -119,7 +119,7 @@ export default function NewItemPage() {
         <p className="rounded-xl bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded-3xl bg-white/75 p-6 ring-1 ring-forest/10">
+      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl bg-white/75 p-4 ring-1 ring-forest/10 sm:rounded-3xl sm:p-6">
         <Field label="Название" name="title" required />
         <label className="block space-y-1 text-sm">
           <span>Описание</span>
@@ -258,7 +258,7 @@ export default function NewItemPage() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-xl bg-coral py-3 font-semibold text-white disabled:opacity-60"
+          className="min-h-12 w-full rounded-xl bg-coral py-3 font-semibold text-white disabled:opacity-60"
         >
           {busy ? "Публикация…" : "Опубликовать"}
         </button>
