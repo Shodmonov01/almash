@@ -38,11 +38,9 @@ export function ItemCard({ item }: { item: ItemCardData }) {
           alt={item.title}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-forest/80 to-transparent p-3 pt-10">
-          <p className="text-sm font-medium text-cream line-clamp-2">{item.title}</p>
-        </div>
       </div>
       <div className="space-y-2 p-3">
+        <p className="font-medium text-forest line-clamp-2">{item.title}</p>
         <div className="flex flex-wrap gap-2 text-xs text-ink/60">
           <span>{item.condition}</span>
           <span>·</span>

@@ -200,6 +200,16 @@ export default function ItemPage() {
               Предложить обмен
             </button>
           )}
+          {!isOwner && item.status === "IN_TRADE" && (
+            <p className="w-full rounded-xl bg-sand/80 px-4 py-3 text-sm text-ink/70">
+              Предмет уже участвует в сделке. Дождитесь завершения или отмены.
+            </p>
+          )}
+          {!isOwner && item.status === "TRADED" && (
+            <p className="w-full rounded-xl bg-mist/80 px-4 py-3 text-sm text-ink/70">
+              Предмет уже обменян.
+            </p>
+          )}
         </div>
 
         {offerOpen && (
