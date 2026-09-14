@@ -1,11 +1,17 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { getSessionUser, requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { scanContent } from "@/lib/antifraud";
 import { parseJsonArray, writeAudit } from "@/lib/utils";
 import { CONDITIONS } from "@/lib/constants";
+import { rankFeedForUser } from "@/lib/services/matching";
+import {
+  assertCanTransact,
+  assertRateLimit,
+  RateLimitError,
+} from "@/lib/services/rate-limit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,7 +25,7 @@ export async function GET(req: NextRequest) {
     const ownerId = searchParams.get("ownerId") || "";
     const feed = searchParams.get("feed") || "new";
     const meCity = searchParams.get("meCity") || "";
-    const wantMatch = searchParams.get("wantMatch") || "";
+    const meId = searchParams.get("meId") || "";
     const limit = Math.min(Number(searchParams.get("limit") || 24), 50);
 
     const where: Record<string, unknown> = {
@@ -65,15 +71,31 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: limit * 2,
+      take: feed === "for_me" ? 80 : limit * 2,
     });
 
-    if (feed === "for_me" && wantMatch) {
-      const cats = wantMatch.split(",").map((s) => s.trim()).filter(Boolean);
-      items = items.filter((it) => {
-        const wantCats = parseJsonArray(it.wantCategories);
-        return cats.some((c) => wantCats.includes(c) || it.subcategory === c);
-      });
+    if (feed === "for_me") {
+      const session = meId || (await getSessionUser())?.id;
+      if (session) {
+        const myItems = await prisma.item.findMany({
+          where: { ownerId: session, status: { in: ["ACTIVE", "IN_TRADE"] } },
+        });
+        const ranked = rankFeedForUser(
+          myItems,
+          items.filter((i) => i.ownerId !== session),
+        );
+        const sliced = ranked.slice(0, limit);
+        return jsonOk({
+          items: sliced.map((it) => ({
+            ...it,
+            wantCategories: parseJsonArray(it.wantCategories),
+            wantBrands: parseJsonArray(it.wantBrands),
+            tags: parseJsonArray(it.tags),
+            matchScore: it.matchScore,
+            matchReasons: it.matchReasons,
+          })),
+        });
+      }
     }
 
     items = items.slice(0, limit);
@@ -125,10 +147,8 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
-    const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-    if (dbUser?.status === "LIMITED" || dbUser?.status === "BLOCKED") {
-      return jsonError("Аккаунт ограничен", 403);
-    }
+    await assertRateLimit(user.id, "create_item");
+    await assertCanTransact(user.id);
 
     const body = createSchema.parse(await req.json());
     const text = `${body.title}\n${body.description}\n${body.wantText || ""}`;
@@ -136,7 +156,15 @@ export async function POST(req: NextRequest) {
     if (
       flag.blocked &&
       flag.reasons.some((r) =>
-        ["оплата", "доплата", "сумма", "валюта", "карта", "перевод денег"].includes(r),
+        [
+          "оплата",
+          "доплата",
+          "сумма",
+          "валюта",
+          "карта",
+          "перевод денег",
+          "продажа",
+        ].includes(r),
       )
     ) {
       await prisma.riskEvent.create({
@@ -147,10 +175,20 @@ export async function POST(req: NextRequest) {
           detail: flag.reasons.join(", "),
         },
       });
+      await prisma.moderationQueue.create({
+        data: {
+          type: "MONEY_LISTING",
+          userId: user.id,
+          detail: flag.reasons.join(", "),
+          score: 40,
+        },
+      });
       return jsonError(flag.message, 400, { reasons: flag.reasons });
     }
 
-    const forbidden = await prisma.forbiddenCategory.findMany({ where: { enabled: true } });
+    const forbidden = await prisma.forbiddenCategory.findMany({
+      where: { enabled: true },
+    });
     const lower = text.toLowerCase();
     for (const f of forbidden) {
       if (lower.includes(f.name.toLowerCase())) {
@@ -220,6 +258,9 @@ export async function POST(req: NextRequest) {
 
     return jsonOk({ item }, { status: 201 });
   } catch (e) {
+    if (e instanceof RateLimitError) return jsonError(e.message, 429);
+    const err = e as Error & { status?: number };
+    if (err.status) return jsonError(err.message, err.status);
     return handleApiError(e);
   }
 }

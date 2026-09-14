@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Heart, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { ReportButton } from "@/components/ReportButton";
 import { TRUST_LEVELS } from "@/lib/constants";
 
 type ItemDetail = {
@@ -166,13 +167,14 @@ export default function ItemPage() {
             alt=""
             className="h-12 w-12 rounded-full object-cover"
           />
-          <div>
+          <div className="flex-1">
             <p className="font-medium">{item.owner.name}</p>
             <p className="text-xs text-ink/55">
               ★ {item.owner.rating.toFixed(1)} · {item.owner.completedTrades} обменов ·{" "}
               {trust}
             </p>
           </div>
+          <ReportButton targetUserId={item.owner.id} itemId={item.id} />
         </Link>
 
         <div className="flex flex-wrap gap-2">

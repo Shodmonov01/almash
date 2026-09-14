@@ -29,8 +29,11 @@ model User {
   disputesLost     Int      @default(0)
   warningCount     Int      @default(0)
   moneyViolations  Int      @default(0)
+  riskScoreCached  Int      @default(0)
+  onboardingDone   Boolean  @default(false)
   deviceFingerprint String?
   lastIp           String?
+  telegramAuthDate DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -94,17 +97,22 @@ model Item {
 }
 
 model ItemMedia {
-  id        String   @id @default(cuid())
-  itemId    String
-  type      String   @default("PHOTO") // PHOTO | VIDEO
-  url       String
-  hash      String?
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  itemId      String
+  type        String   @default("PHOTO") // PHOTO | VIDEO
+  url         String
+  hash        String?
+  phash       String?
+  watermarked Boolean  @default(false)
+  width       Int?
+  height      Int?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
 
-  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@index([hash])
+  @@index([phash])
   @@index([itemId])
 }
 
@@ -157,6 +165,9 @@ model Trade {
   confirmCodeA    String?
   confirmCodeB    String?
   qrToken         String?
+  codeAUsedAt     DateTime?
+  codeBUsedAt     DateTime?
+  qrUsedAt        DateTime?
   partyAConfirmedAt DateTime?
   partyBConfirmedAt DateTime?
   termsLockedAt   DateTime?
@@ -164,6 +175,9 @@ model Trade {
   cancelledById   String?
   cancelReason    String?
   riskScore       Int       @default(0)
+  reminder24Sent  Boolean   @default(false)
+  reminder2Sent   Boolean   @default(false)
+  handoffReminderSent Boolean @default(false)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -340,4 +354,30 @@ model ForbiddenCategory {
   id        String  @id @default(cuid())
   name      String  @unique
   enabled   Boolean @default(true)
+}
+
+model ModerationQueue {
+  id          String   @id @default(cuid())
+  type        String   // DUPLICATE_PHOTO | MONEY_LISTING | HIGH_RISK_USER | SUSPICIOUS_TRADE
+  status      String   @default("OPEN") // OPEN | REVIEWED | DISMISSED
+  itemId      String?
+  userId      String?
+  tradeId     String?
+  mediaHash   String?
+  detail      String?
+  score       Int      @default(0)
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+
+  @@index([status, type])
+}
+
+model RateLimitBucket {
+  id        String   @id @default(cuid())
+  key       String
+  count     Int      @default(0)
+  windowStart DateTime @default(now())
+
+  @@unique([key])
 }

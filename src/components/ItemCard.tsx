@@ -12,6 +12,8 @@ export type ItemCardData = {
   district?: string | null;
   wantText?: string | null;
   media: { url: string }[];
+  matchScore?: number;
+  matchReasons?: string[];
   owner: {
     id: string;
     name: string;
@@ -41,6 +43,14 @@ export function ItemCard({ item }: { item: ItemCardData }) {
       </div>
       <div className="space-y-2 p-3">
         <p className="font-medium text-forest line-clamp-2">{item.title}</p>
+        {typeof item.matchScore === "number" && (
+          <p className="text-[11px] text-coral">
+            Match {item.matchScore}
+            {item.matchReasons?.length
+              ? ` · ${item.matchReasons.slice(0, 2).join(", ")}`
+              : ""}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2 text-xs text-ink/60">
           <span>{item.condition}</span>
           <span>·</span>

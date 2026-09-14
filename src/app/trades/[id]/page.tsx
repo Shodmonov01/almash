@@ -11,6 +11,9 @@ import {
   SAFE_MEETING_PLACES,
   TRADE_STATUS_LABELS,
 } from "@/lib/constants";
+import { CounterOfferPanel } from "@/components/trade/CounterOfferPanel";
+import { SnapshotTimeline } from "@/components/trade/SnapshotTimeline";
+import { ReportButton } from "@/components/ReportButton";
 
 type Trade = {
   id: string;
@@ -73,6 +76,7 @@ export default function TradeDetailPage() {
   const [reviewTags, setReviewTags] = useState<string[]>([]);
   const [disputeReason, setDisputeReason] = useState(DISPUTE_REASONS[0]);
   const [disputeDesc, setDisputeDesc] = useState("");
+  const [showCounter, setShowCounter] = useState(false);
 
   const reload = useCallback(async () => {
     const [t, m] = await Promise.all([
@@ -166,9 +170,19 @@ export default function TradeDetailPage() {
             {trade.currentVersion}
           </p>
         </div>
-        <Link href="/trades" className="text-sm text-forest underline">
-          ← ко всем обменам
-        </Link>
+        <div className="flex items-center gap-3">
+          <ReportButton
+            tradeId={trade.id}
+            targetUserId={
+              user.id === trade.initiatorId
+                ? trade.recipientId
+                : trade.initiatorId
+            }
+          />
+          <Link href="/trades" className="text-sm text-forest underline">
+            ← ко всем обменам
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -260,6 +274,11 @@ export default function TradeDetailPage() {
             Начать передачу
           </Btn>
         )}
+        {["OFFER_SENT", "NEGOTIATION", "TERMS_AGREED"].includes(trade.status) && (
+          <Btn tone="muted" onClick={() => setShowCounter((v) => !v)}>
+            {showCounter ? "Скрыть изменение состава" : "Изменить состав"}
+          </Btn>
+        )}
         {!["COMPLETED", "CANCELLED", "BLOCKED"].includes(trade.status) && (
           <Btn
             tone="muted"
@@ -276,6 +295,22 @@ export default function TradeDetailPage() {
           </Btn>
         )}
       </section>
+
+      {showCounter && (
+        <CounterOfferPanel
+          tradeId={trade.id}
+          initiatorId={trade.initiatorId}
+          recipientId={trade.recipientId}
+          currentOfferedIds={sideA.map((i) => i.item.id)}
+          currentTargetIds={sideB.map((i) => i.item.id)}
+          onDone={async () => {
+            setShowCounter(false);
+            await reload();
+          }}
+        />
+      )}
+
+      <SnapshotTimeline tradeId={trade.id} />
 
       {/* QR / code confirmation */}
       {canHandoff && (

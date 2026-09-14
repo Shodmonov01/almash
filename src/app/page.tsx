@@ -24,12 +24,15 @@ export default function HomePage() {
     if (category) params.set("category", category);
     params.set("feed", feed);
     if (user?.city) params.set("meCity", user.city);
+    if (user?.id) params.set("meId", user.id);
     setLoading(true);
-    api<{ items: ItemCardData[] }>(`/api/items?${params}`)
+    api<{ items: (ItemCardData & { matchScore?: number; matchReasons?: string[] })[] }>(
+      `/api/items?${params}`,
+    )
       .then((d) => setItems(d.items))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [q, category, feed, user?.city]);
+  }, [q, category, feed, user?.city, user?.id]);
 
   return (
     <div className="space-y-8">

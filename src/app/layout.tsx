@@ -3,6 +3,7 @@ import { Fraunces, Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AppShell } from "@/components/AppShell";
+import { OnboardingGate } from "@/components/OnboardingGate";
 
 const display = Fraunces({
   variable: "--font-display",
@@ -27,7 +28,9 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${display.variable} ${sans.variable} antialiased`}>
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <OnboardingGate>
+            <AppShell>{children}</AppShell>
+          </OnboardingGate>
         </AuthProvider>
       </body>
     </html>

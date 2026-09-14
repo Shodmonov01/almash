@@ -37,6 +37,7 @@ async function main() {
       rating: 5,
       ratingCount: 12,
       completedTrades: 120,
+      onboardingDone: true,
       avatarUrl: PLACEHOLDER("admin", "Admin"),
     },
   });
@@ -52,6 +53,7 @@ async function main() {
       rating: 4.8,
       ratingCount: 8,
       completedTrades: 7,
+      onboardingDone: true,
       avatarUrl: PLACEHOLDER("aliya", "Алия"),
     },
   });
@@ -67,6 +69,7 @@ async function main() {
       rating: 0,
       ratingCount: 0,
       completedTrades: 0,
+      onboardingDone: false,
       avatarUrl: PLACEHOLDER("bobur", "Бобур"),
     },
   });
@@ -82,6 +85,7 @@ async function main() {
       rating: 4.9,
       ratingCount: 22,
       completedTrades: 24,
+      onboardingDone: true,
       avatarUrl: PLACEHOLDER("dilnoza", "Дильноза"),
     },
   });

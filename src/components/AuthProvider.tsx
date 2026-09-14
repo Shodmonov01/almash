@@ -10,6 +10,17 @@ import {
 } from "react";
 import { api, type User } from "@/lib/client";
 
+function deviceFingerprint() {
+  if (typeof window === "undefined") return undefined;
+  const key = "toyswap_fp";
+  let fp = localStorage.getItem(key);
+  if (!fp) {
+    fp = `fp_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
+    localStorage.setItem(key, fp);
+  }
+  return fp;
+}
+
 type AuthCtx = {
   user: User | null;
   loading: boolean;
@@ -42,7 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string) => {
     const data = await api<{ user: User }>("/api/auth", {
       method: "POST",
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({
+        username,
+        deviceFingerprint: deviceFingerprint(),
+      }),
     });
     setUser(data.user);
   };

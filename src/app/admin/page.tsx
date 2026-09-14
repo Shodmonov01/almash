@@ -31,8 +31,8 @@ export default function AdminPage() {
   return (
     <div className="space-y-6 animate-rise">
       <h1 className="font-display text-3xl text-forest">Админ-панель</h1>
-      <div className="flex flex-wrap gap-2">
-        {["overview", "users", "items", "trades", "disputes", "reports"].map(
+      <div className="flex flex-wrap items-center gap-2">
+        {["overview", "users", "items", "trades", "disputes", "reports", "moderation"].map(
           (t) => (
             <button
               key={t}
@@ -48,6 +48,13 @@ export default function AdminPage() {
             </button>
           ),
         )}
+        <button
+          type="button"
+          className="rounded-lg bg-forest px-3 py-1.5 text-sm text-cream"
+          onClick={() => run({ action: "run_jobs" })}
+        >
+          Run jobs
+        </button>
       </div>
 
       {tab === "overview" && data.overview != null ? (
@@ -189,6 +196,59 @@ export default function AdminPage() {
         <pre className="overflow-auto rounded-2xl bg-white/80 p-4 text-xs">
           {JSON.stringify(data, null, 2)}
         </pre>
+      )}
+
+      {tab === "moderation" && Array.isArray(data.queue) && (
+        <div className="space-y-2">
+          {(
+            data.queue as {
+              id: string;
+              type: string;
+              status: string;
+              detail: string | null;
+              score: number;
+            }[]
+          ).map((q) => (
+            <div
+              key={q.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 p-3 text-sm"
+            >
+              <span>
+                [{q.type}] {q.status} · score {q.score}
+                <br />
+                <span className="text-xs text-ink/50">{q.detail}</span>
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg bg-mist px-2 py-1 text-xs"
+                  onClick={() =>
+                    run({
+                      action: "review_moderation",
+                      queueId: q.id,
+                      status: "REVIEWED",
+                    })
+                  }
+                >
+                  Reviewed
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-mist px-2 py-1 text-xs"
+                  onClick={() =>
+                    run({
+                      action: "review_moderation",
+                      queueId: q.id,
+                      status: "DISMISSED",
+                    })
+                  }
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

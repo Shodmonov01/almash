@@ -77,6 +77,14 @@ export async function GET(req: NextRequest) {
       return jsonOk({ reports });
     }
 
+    if (tab === "moderation") {
+      const queue = await prisma.moderationQueue.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      });
+      return jsonOk({ queue });
+    }
+
     return jsonError("Unknown tab", 400);
   } catch (e) {
     return handleApiError(e);
@@ -108,6 +116,14 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("review_report"),
     reportId: z.string(),
     status: z.enum(["REVIEWED", "ACTION_TAKEN", "DISMISSED"]),
+  }),
+  z.object({
+    action: z.literal("review_moderation"),
+    queueId: z.string(),
+    status: z.enum(["REVIEWED", "DISMISSED"]),
+  }),
+  z.object({
+    action: z.literal("run_jobs"),
   }),
 ]);
 
@@ -197,6 +213,32 @@ export async function POST(req: NextRequest) {
         await prisma.report.update({
           where: { id: body.reportId },
           data: { status: body.status },
+        });
+        break;
+      }
+      case "review_moderation": {
+        await prisma.moderationQueue.update({
+          where: { id: body.queueId },
+          data: {
+            status: body.status,
+            reviewedAt: new Date(),
+            reviewedBy: admin.id,
+          },
+        });
+        await writeAudit({
+          userId: admin.id,
+          action: "ADMIN_REVIEW_MODERATION",
+          meta: { queueId: body.queueId, status: body.status },
+        });
+        break;
+      }
+      case "run_jobs": {
+        const { runMaintenanceJobs } = await import("@/lib/jobs/maintenance");
+        const result = await runMaintenanceJobs();
+        await writeAudit({
+          userId: admin.id,
+          action: "JOBS_RUN",
+          meta: result,
         });
         break;
       }

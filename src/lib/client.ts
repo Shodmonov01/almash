@@ -37,4 +37,6 @@ export type User = {
   status?: string;
   createdAt?: string;
   bio?: string | null;
+  onboardingDone?: boolean;
+  riskScoreCached?: number;
 };

@@ -12,10 +12,41 @@ export default function NewItemPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("Игрушки");
+  const [uploaded, setUploaded] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const subcats = useMemo(() => CATEGORIES[category] || [], [category]);
 
   if (!loading && !user) {
     router.replace("/login");
+  }
+
+  async function onUpload(files: FileList | null) {
+    if (!files?.length) return;
+    setUploading(true);
+    setError("");
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const fd = new FormData();
+        fd.append("file", files[i]);
+        fd.append("itemId", "draft");
+        fd.append("sortOrder", String(uploaded.length + i));
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+        urls.push(data.url);
+        if (data.duplicateWarning) {
+          setError(
+            "Похожие фото уже есть у других пользователей — объявление может уйти на модерацию.",
+          );
+        }
+      }
+      setUploaded((u) => [...u, ...urls]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка загрузки");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -25,10 +56,11 @@ export default function NewItemPage() {
     setError("");
     const fd = new FormData(e.currentTarget);
     const photosRaw = String(fd.get("photos") || "");
-    const photos = photosRaw
+    const photosFromText = photosRaw
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
+    const photos = [...uploaded, ...photosFromText];
 
     const wantCategories = String(fd.get("wantCategories") || "")
       .split(",")
@@ -181,11 +213,35 @@ export default function NewItemPage() {
           placeholder="Конструкторы, Машинки"
         />
 
-        <label className="block space-y-1 text-sm">
-          <span>Фото (URL, минимум 2, по одному в строке) — или оставьте пустым для демо</span>
+        <label className="block space-y-2 text-sm">
+          <span>Фото (загрузка с watermark платформы)</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => onUpload(e.target.files)}
+            className="block w-full text-sm"
+          />
+          {uploading && <p className="text-xs text-ink/50">Загрузка…</p>}
+          {uploaded.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {uploaded.map((u) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={u}
+                  src={u}
+                  alt=""
+                  className="h-16 w-16 rounded-lg object-cover ring-1 ring-forest/10"
+                />
+              ))}
+            </div>
+          )}
+          <span className="text-xs text-ink/45">
+            Или вставьте URL (по одному в строке). Минимум 2 фото — иначе демо-плейсхолдеры.
+          </span>
           <textarea
             name="photos"
-            rows={3}
+            rows={2}
             className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2 font-mono text-xs"
             placeholder="https://..."
           />

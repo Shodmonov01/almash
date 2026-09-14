@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Bell,
   Heart,
   Home,
   MessageCircle,
@@ -20,6 +21,7 @@ const links = [
   { href: "/trades", label: "Обмены", icon: RefreshCw },
   { href: "/favorites", label: "Избранное", icon: Heart },
   { href: "/matches", label: "Match", icon: MessageCircle },
+  { href: "/notifications", label: "Алерты", icon: Bell },
   { href: "/profile", label: "Профиль", icon: UserIcon },
 ];
 

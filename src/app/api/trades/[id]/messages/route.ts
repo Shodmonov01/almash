@@ -5,6 +5,10 @@ import { requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { scanContent, computeRiskScore } from "@/lib/antifraud";
 import { notify, writeAudit } from "@/lib/utils";
+import {
+  assertRateLimit,
+  RateLimitError,
+} from "@/lib/services/rate-limit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,7 +37,17 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       take: 500,
     });
 
-    return jsonOk({ messages, tradeId: trade.id, publicId: trade.publicId });
+    const safe = messages.map((m) =>
+      m.flagged && user.role !== "ADMIN"
+        ? { ...m, body: "[сообщение скрыто фильтром безопасности]" }
+        : m,
+    );
+
+    return jsonOk({
+      messages: safe,
+      tradeId: trade.id,
+      publicId: trade.publicId,
+    });
   } catch (e) {
     return handleApiError(e);
   }
@@ -47,6 +61,7 @@ const schema = z.object({
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
     const user = await requireUser();
+    await assertRateLimit(user.id, "send_message");
     const { id } = await ctx.params;
     const trade = await prisma.trade.findFirst({
       where: { OR: [{ id }, { publicId: id }] },
@@ -60,9 +75,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
 
     const data = schema.parse(await req.json());
-    const allowContacts = ["TERMS_AGREED", "MEETING_SCHEDULED", "HANDOFF_PENDING", "PARTY_A_CONFIRMED", "PARTY_B_CONFIRMED"].includes(
-      trade.status,
-    );
+    const allowContacts = [
+      "TERMS_AGREED",
+      "MEETING_SCHEDULED",
+      "HANDOFF_PENDING",
+      "PARTY_A_CONFIRMED",
+      "PARTY_B_CONFIRMED",
+    ].includes(trade.status);
 
     const flag = scanContent(data.body, { allowContacts });
     if (flag.blocked) {
@@ -71,6 +90,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         data: {
           moneyViolations: { increment: 1 },
           warningCount: { increment: 1 },
+          riskScoreCached: { increment: 10 },
         },
       });
 
@@ -94,14 +114,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
         meta: { reasons: flag.reasons },
       });
 
-      if (dbUser.moneyViolations >= 3) {
+      if (dbUser.moneyViolations >= 3 || dbUser.riskScoreCached >= 70) {
         await prisma.user.update({
           where: { id: user.id },
           data: { status: "LIMITED" },
         });
       }
 
-      // Still store flagged message for audit but don't deliver as normal
       await prisma.message.create({
         data: {
           tradeId: trade.id,
@@ -150,6 +169,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
     return jsonOk({ message });
   } catch (e) {
+    if (e instanceof RateLimitError) return jsonError(e.message, 429);
     return handleApiError(e);
   }
 }
