@@ -2,8 +2,19 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const PLACEHOLDER = (seed: string, label: string) =>
-  `https://placehold.co/600x600/1a5f4a/ffffff/png?text=${encodeURIComponent(label)}&font=roboto`;
+const TONES = [
+  ["8B7CFF", "F7F3EA"],
+  ["9EE4F2", "17151F"],
+  ["FF6D57", "F7F3EA"],
+  ["C4B5FF", "17151F"],
+  ["D6F15C", "17151F"],
+  ["FFB4EA", "17151F"],
+] as const;
+
+const PLACEHOLDER = (seed: string, label: string, i = 0) => {
+  const [bg, fg] = TONES[i % TONES.length];
+  return `https://placehold.co/600x800/${bg}/${fg}/png?text=${encodeURIComponent(label)}&font=roboto`;
+};
 
 async function main() {
   await prisma.message.deleteMany();
@@ -211,7 +222,7 @@ async function main() {
       data: photos.map((p, i) => ({
         itemId: item.id,
         type: "PHOTO",
-        url: PLACEHOLDER(item.id + i, p),
+        url: PLACEHOLDER(item.id + i, p, i),
         hash: `hash-${item.id}-${i}`,
         sortOrder: i,
       })),
