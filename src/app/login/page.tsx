@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { api, type User } from "@/lib/client";
+import { ToyMascot } from "@/components/ToyMascot";
+
+const TILE = ["bg-mist", "bg-lilac", "bg-sand", "bg-coral text-white"];
 
 export default function LoginPage() {
   const { user, login, loading } = useAuth();
@@ -34,47 +37,52 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 animate-rise sm:space-y-6">
-      <div className="rounded-2xl bg-forest p-5 text-cream sm:rounded-3xl sm:p-8">
-        <h1 className="font-display text-2xl sm:text-3xl">Вход в SwapToy</h1>
-        <p className="mt-2 text-sm text-cream/80 sm:text-base">
-          MVP-авторизация имитирует Telegram Mini App: выберите демо-профиль.
-          Пароли не используются.
-        </p>
-      </div>
+    <div className="mx-auto max-w-md animate-rise">
+      <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0_20px_50px_rgba(23,21,31,0.12)]">
+        <div className="relative bg-forest px-6 pb-20 pt-10 text-center text-white">
+          <p className="font-display text-5xl leading-none">SwapToy</p>
+          <p className="mt-2 text-sm font-semibold text-white/85">
+            меняйся игрушками — весело и без денег
+          </p>
+          <div className="absolute -bottom-12 left-1/2 w-36 -translate-x-1/2">
+            <ToyMascot mood="wave" />
+          </div>
+        </div>
 
-      {error && (
-        <p className="rounded-xl bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p>
-      )}
-
-      <div className="space-y-2 sm:space-y-3">
-        {users.map((u) => (
-          <button
-            key={u.id}
-            type="button"
-            disabled={busy}
-            onClick={() => onPick(u.username!)}
-            className="flex min-h-[4.5rem] w-full items-center gap-3 rounded-2xl bg-white/80 p-3 text-left ring-1 ring-forest/10 transition active:scale-[0.99] hover:ring-forest/30 disabled:opacity-60 sm:gap-4 sm:p-4"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={u.avatarUrl || ""}
-              alt=""
-              className="h-12 w-12 shrink-0 rounded-full object-cover"
-            />
-            <div className="min-w-0">
-              <p className="font-medium">
-                {u.name}{" "}
-                {u.role === "ADMIN" && (
-                  <span className="text-xs text-coral">admin</span>
-                )}
-              </p>
-              <p className="truncate text-sm text-ink/55">
-                @{u.username} · {u.city} · {u.trustLevel}
-              </p>
-            </div>
-          </button>
-        ))}
+        <div className="space-y-3 px-4 pb-5 pt-16 sm:px-5">
+          {error && (
+            <p className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-semibold text-coral">
+              {error}
+            </p>
+          )}
+          {users.map((u, i) => (
+            <button
+              key={u.id}
+              type="button"
+              disabled={busy}
+              onClick={() => onPick(u.username!)}
+              className={`flex min-h-[4.5rem] w-full items-center gap-3 rounded-[1.4rem] p-3 text-left shadow-[0_6px_0_rgba(23,21,31,0.08)] transition active:translate-y-0.5 active:shadow-none disabled:opacity-60 ${TILE[i % TILE.length]}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={u.avatarUrl || ""}
+                alt=""
+                className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-white/70"
+              />
+              <div className="min-w-0">
+                <p className="font-display text-lg leading-tight">
+                  {u.name}{" "}
+                  {u.role === "ADMIN" && (
+                    <span className="text-xs font-bold opacity-80">admin</span>
+                  )}
+                </p>
+                <p className="truncate text-sm font-semibold opacity-70">
+                  @{u.username} · {u.city}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

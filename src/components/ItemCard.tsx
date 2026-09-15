@@ -31,9 +31,9 @@ export function ItemCard({ item }: { item: ItemCardData }) {
   return (
     <Link
       href={`/items/${item.id}`}
-      className="group block overflow-hidden rounded-2xl bg-white/70 shadow-[0_8px_30px_rgba(26,95,74,0.08)] ring-1 ring-forest/5 transition active:scale-[0.99] hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(26,95,74,0.14)]"
+      className="group block overflow-hidden rounded-[1.4rem] bg-white shadow-[0_10px_0_rgba(23,21,31,0.06)] transition active:translate-y-0.5 active:shadow-none hover:-translate-y-0.5"
     >
-      <div className="relative aspect-square overflow-hidden bg-mist">
+      <div className="relative aspect-square overflow-hidden bg-lilac">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.media[0]?.url || "https://placehold.co/600x600"}
@@ -42,7 +42,7 @@ export function ItemCard({ item }: { item: ItemCardData }) {
         />
       </div>
       <div className="space-y-2 p-2.5 sm:space-y-2 sm:p-3">
-        <p className="text-sm font-medium leading-snug text-forest line-clamp-2 sm:text-base">
+        <p className="text-sm font-extrabold leading-snug text-ink line-clamp-2 sm:text-base">
           {item.title}
         </p>
         {typeof item.matchScore === "number" && (

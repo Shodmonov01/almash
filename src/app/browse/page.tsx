@@ -38,10 +38,10 @@ export default function BrowsePage() {
     <div className="space-y-5 sm:space-y-8">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between animate-rise">
         <div>
-          <h1 className="font-display text-3xl text-forest">Каталог</h1>
-          <p className="text-sm text-ink/60">
+          <h1 className="font-display text-4xl text-ink">Каталог</h1>
+          <p className="text-sm font-semibold text-ink/55">
             Поиск списком. Основной режим —{" "}
-            <Link href="/" className="font-medium text-coral underline-offset-2 hover:underline">
+            <Link href="/" className="font-extrabold text-forest underline-offset-2 hover:underline">
               свайп обмен / не обмен
             </Link>
             .
@@ -49,7 +49,7 @@ export default function BrowsePage() {
         </div>
         <Link
           href="/"
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest px-4 text-sm font-medium text-cream"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-sand px-5 text-sm font-extrabold text-ink shadow-[0_5px_0_#b8d63a]"
         >
           <Sparkles size={16} /> К свайпам
         </Link>

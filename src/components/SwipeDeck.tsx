@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, RotateCcw, X, Sparkles } from "lucide-react";
+import { Heart, RotateCcw, X } from "lucide-react";
 import clsx from "clsx";
 import { api } from "@/lib/client";
 import { useAuth } from "@/components/AuthProvider";
+import { ToyMascot } from "@/components/ToyMascot";
+import { ConfettiBurst } from "@/components/ConfettiBurst";
 
 export type SwipeCard = {
   id: string;
@@ -42,7 +44,8 @@ type MatchInfo = {
   theirUserName: string;
 };
 
-const SWIPE_THRESHOLD = 110;
+const SWIPE_THRESHOLD = 96;
+const FLY_MS = 520;
 
 export function SwipeDeck() {
   const { user, loading: authLoading } = useAuth();
@@ -54,8 +57,10 @@ export function SwipeDeck() {
   const [match, setMatch] = useState<MatchInfo | null>(null);
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
   const [exit, setExit] = useState<"left" | "right" | null>(null);
+  const [hint, setHint] = useState(false);
   const startRef = useRef<{ x: number; y: number } | null>(null);
-  const topIdRef = useRef<string | null>(null);
+  const dragRef = useRef({ x: 0, y: 0 });
+  const velRef = useRef({ x: 0, t: 0 });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,8 +94,16 @@ export function SwipeDeck() {
   }, [user, authLoading, router, load]);
 
   const top = cards[0] ?? null;
-  topIdRef.current = top?.id ?? null;
   const canLike = myItemCount > 0 || !!top?.suggestedOffer;
+
+  useEffect(() => {
+    if (!top || busy || drag.active || exit) {
+      setHint(false);
+      return;
+    }
+    const t = window.setTimeout(() => setHint(true), 1400);
+    return () => window.clearTimeout(t);
+  }, [top, busy, drag.active, exit]);
 
   const commit = useCallback(
     async (direction: "LIKE" | "PASS", card: SwipeCard) => {
@@ -98,9 +111,11 @@ export function SwipeDeck() {
       if (direction === "LIKE" && myItemCount === 0 && !card.suggestedOffer) {
         setExit(null);
         setDrag({ x: 0, y: 0, active: false });
+        dragRef.current = { x: 0, y: 0 };
         return;
       }
       setBusy(true);
+      setHint(false);
       setExit(direction === "LIKE" ? "right" : "left");
       try {
         const result = await api<{
@@ -118,16 +133,15 @@ export function SwipeDeck() {
           setCards((prev) => prev.filter((c) => c.id !== card.id));
           setExit(null);
           setDrag({ x: 0, y: 0, active: false });
+          dragRef.current = { x: 0, y: 0 };
           setBusy(false);
           if (result.match) setMatch(result.match);
-        }, 280);
-      } catch (e) {
+        }, FLY_MS);
+      } catch {
         setExit(null);
         setDrag({ x: 0, y: 0, active: false });
+        dragRef.current = { x: 0, y: 0 };
         setBusy(false);
-        if (e instanceof Error && e.message.includes("добавьте")) {
-          // keep card; gate UI below handles empty inventory
-        }
       }
     },
     [busy, myItemCount],
@@ -137,26 +151,34 @@ export function SwipeDeck() {
     if (busy || !top) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     startRef.current = { x: e.clientX, y: e.clientY };
+    velRef.current = { x: 0, t: performance.now() };
+    setHint(false);
     setDrag({ x: 0, y: 0, active: true });
   }
 
   function onPointerMove(e: React.PointerEvent) {
     if (!startRef.current || busy) return;
     const x = e.clientX - startRef.current.x;
-    const y = e.clientY - startRef.current.y;
-    setDrag({ x, y: y * 0.35, active: true });
+    const y = (e.clientY - startRef.current.y) * 0.32;
+    const now = performance.now();
+    const dt = Math.max(8, now - velRef.current.t);
+    velRef.current = { x: (x - dragRef.current.x) / dt, t: now };
+    dragRef.current = { x, y };
+    setDrag({ x, y, active: true });
   }
 
   function onPointerUp() {
     if (!startRef.current || !top || busy) return;
-    const { x } = drag;
+    const { x } = dragRef.current;
+    const flung = Math.abs(velRef.current.x) > 0.85;
     startRef.current = null;
-    if (x > SWIPE_THRESHOLD) {
+    if (x > SWIPE_THRESHOLD || (flung && x > 36)) {
       void commit("LIKE", top);
-    } else if (x < -SWIPE_THRESHOLD) {
+    } else if (x < -SWIPE_THRESHOLD || (flung && x < -36)) {
       void commit("PASS", top);
     } else {
       setDrag({ x: 0, y: 0, active: false });
+      dragRef.current = { x: 0, y: 0 };
     }
   }
 
@@ -181,60 +203,75 @@ export function SwipeDeck() {
 
   if (authLoading || !user) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center text-ink/50">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 text-ink/50">
+        <ToyMascot className="w-28 animate-softpulse" mood="idle" />
         Загрузка…
       </div>
     );
   }
 
-  const rot = drag.x * 0.04;
+  const rot = drag.x * 0.048;
   const likeOpacity = Math.min(1, Math.max(0, drag.x / SWIPE_THRESHOLD));
   const passOpacity = Math.min(1, Math.max(0, -drag.x / SWIPE_THRESHOLD));
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-4">
-      <header className="space-y-1 text-center animate-rise">
-        <p className="font-display text-3xl text-forest sm:text-4xl">SwapToy</p>
-        <p className="text-sm text-ink/60">
-          Вправо — обмен · влево — пропуск
-        </p>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+      <header className="flex items-end justify-between gap-3 animate-rise">
+        <div>
+          <p className="font-display text-[2rem] leading-none text-ink sm:text-4xl">
+            обменяться?
+          </p>
+          <p className="mt-1 text-sm font-semibold text-ink/50">
+            вправо — да · влево — нет
+          </p>
+        </div>
+        <ToyMascot className="w-16 shrink-0 sm:w-20" mood={exit === "right" ? "yay" : "idle"} />
       </header>
 
+      <div className="flex gap-2">
+        <span className="rounded-full bg-coral px-3 py-1 text-xs font-extrabold text-white">
+          ← пропуск
+        </span>
+        <span className="rounded-full bg-sand px-3 py-1 text-xs font-extrabold text-ink">
+          обмен →
+        </span>
+      </div>
+
       {myItemCount === 0 && (
-        <div className="rounded-2xl bg-coral/10 px-4 py-3 text-sm text-coral ring-1 ring-coral/20">
-          Добавьте свою игрушку, чтобы свайпать вправо.{" "}
-          <Link href="/items/new" className="font-semibold underline">
+        <div className="rounded-3xl bg-coral px-4 py-3 text-sm font-bold text-white shadow-[0_6px_0_#c44a3a]">
+          Сначала добавьте свою игрушку — иначе нечем меняться.{" "}
+          <Link href="/items/new" className="underline">
             Добавить
           </Link>
         </div>
       )}
 
-      <div className="relative mx-auto aspect-[3/4] w-full max-h-[min(68vh,560px)]">
+      <div className="relative mx-auto aspect-[3/4] w-full max-h-[min(62vh,540px)]">
         {loading ? (
-          <div className="flex h-full items-center justify-center rounded-3xl bg-white/50 text-ink/45 ring-1 ring-forest/10">
+          <div className="flex h-full flex-col items-center justify-center gap-2 rounded-[2rem] bg-white text-ink/45 shadow-[0_16px_40px_rgba(23,21,31,0.08)]">
+            <ToyMascot className="w-24 animate-softpulse" />
             Подбираем колоду…
           </div>
         ) : cards.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-3xl bg-white/70 px-6 text-center ring-1 ring-forest/10">
-            <Sparkles className="text-forest" />
-            <p className="font-display text-2xl text-forest">Колода пуста</p>
-            <p className="text-sm text-ink/55">
-              Вы просмотрели все доступные вещи. Загляните в каталог или
-              подождите новые объявления.
+          <div className="flex h-full flex-col items-center justify-center gap-2 rounded-[2rem] bg-mist px-6 text-center shadow-[0_16px_40px_rgba(23,21,31,0.08)]">
+            <ToyMascot className="w-28" mood="sad" />
+            <p className="font-display text-3xl text-ink">Колода пуста</p>
+            <p className="text-sm font-semibold text-ink/55">
+              Все карточки просмотрены. Загляните в каталог или обновите колоду.
             </p>
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <button
                 type="button"
                 onClick={() => load()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-forest px-4 text-sm font-medium text-cream"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-cream"
               >
                 <RotateCcw size={16} /> Обновить
               </button>
               <Link
                 href="/browse"
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-forest/10 px-4 text-sm font-medium text-forest"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-bold text-ink"
               >
-                Открыть каталог
+                Каталог
               </Link>
             </div>
           </div>
@@ -244,31 +281,35 @@ export function SwipeDeck() {
               .slice(0, 3)
               .reverse()
               .map((card, revIdx, arr) => {
-                const stackIndex = arr.length - 1 - revIdx; // 0 = top
+                const stackIndex = arr.length - 1 - revIdx;
                 const isTop = stackIndex === 0;
-                const scale = 1 - stackIndex * 0.04;
-                const yOff = stackIndex * 10;
-                const transform = isTop
-                  ? exit === "right"
-                    ? `translate(140%, -8%) rotate(18deg)`
-                    : exit === "left"
-                      ? `translate(-140%, -8%) rotate(-18deg)`
-                      : `translate(${drag.x}px, ${drag.y + yOff}px) rotate(${rot}deg) scale(${scale})`
-                  : `translate(0, ${yOff}px) scale(${scale})`;
+                const scale = 1 - stackIndex * 0.055;
+                const yOff = stackIndex * 14;
+                const xOff = stackIndex * 6;
+                const hinting = isTop && hint && !drag.active && !exit;
+                const transform = hinting
+                  ? undefined
+                  : isTop
+                    ? `translate(${drag.x}px, ${drag.y}px) rotate(${rot}deg)`
+                    : `translate(${xOff}px, ${yOff}px) scale(${scale})`;
 
                 return (
                   <div
                     key={card.id}
                     className={clsx(
-                      "absolute inset-0 overflow-hidden rounded-3xl bg-forest-deep shadow-xl shadow-forest/20 ring-1 ring-black/5",
+                      "absolute inset-0 overflow-hidden rounded-[2rem] bg-ink shadow-[0_18px_40px_rgba(23,21,31,0.18)]",
                       isTop && "touch-none cursor-grab active:cursor-grabbing",
-                      exit && isTop && "transition-transform duration-300 ease-out",
-                      !exit && isTop && !drag.active && "transition-transform duration-200",
+                      isTop && exit === "right" && "swipe-fly-right",
+                      isTop && exit === "left" && "swipe-fly-left",
+                      hinting && "swipe-hint",
+                      !exit && isTop && !drag.active && !hint && "transition-transform duration-500 ease-[cubic-bezier(0.22,1.2,0.36,1)]",
                     )}
                     style={{
                       zIndex: 10 - stackIndex,
                       transform,
-                      opacity: exit && isTop ? 0.85 : 1,
+                      ["--dx" as string]: `${drag.x}px`,
+                      ["--dy" as string]: `${drag.y}px`,
+                      ["--rot" as string]: `${rot}deg`,
                     }}
                     onPointerDown={isTop ? onPointerDown : undefined}
                     onPointerMove={isTop ? onPointerMove : undefined}
@@ -279,49 +320,65 @@ export function SwipeDeck() {
                     <img
                       src={
                         card.media[0]?.url ||
-                        "https://placehold.co/600x800/1a5f4a/f7faf8?text=SwapToy"
+                        "https://placehold.co/600x800/8B7CFF/F7F3EA?text=SwapToy"
                       }
                       alt={card.title}
                       className="absolute inset-0 h-full w-full object-cover"
                       draggable={false}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
+                    <div
+                      className="absolute inset-0 transition-colors"
+                      style={{
+                        background:
+                          likeOpacity > 0.05
+                            ? `linear-gradient(180deg, rgba(214,241,92,${0.18 * likeOpacity}) 0%, rgba(23,21,31,0.72) 100%)`
+                            : passOpacity > 0.05
+                              ? `linear-gradient(180deg, rgba(255,109,87,${0.28 * passOpacity}) 0%, rgba(23,21,31,0.72) 100%)`
+                              : "linear-gradient(180deg, transparent 35%, rgba(23,21,31,0.82) 100%)",
+                      }}
+                    />
 
-                    {isTop && (
-                      <>
-                        <div
-                          className="pointer-events-none absolute left-5 top-6 rounded-xl border-4 border-emerald-400 px-3 py-1 font-display text-2xl uppercase tracking-wide text-emerald-400"
-                          style={{ opacity: likeOpacity }}
-                        >
-                          Обмен
-                        </div>
-                        <div
-                          className="pointer-events-none absolute right-5 top-6 rounded-xl border-4 border-rose-400 px-3 py-1 font-display text-2xl uppercase tracking-wide text-rose-400"
-                          style={{ opacity: passOpacity }}
-                        >
-                          Нет
-                        </div>
-                      </>
+                    {isTop && likeOpacity > 0.12 && (
+                      <div
+                        className="swipe-stamp pointer-events-none absolute left-4 top-7 rounded-2xl border-[5px] border-sand px-3 py-1 font-display text-3xl uppercase tracking-wide text-sand"
+                        style={{
+                          opacity: likeOpacity,
+                          transform: `rotate(-12deg) scale(${0.85 + likeOpacity * 0.2})`,
+                        }}
+                      >
+                        Да!
+                      </div>
+                    )}
+                    {isTop && passOpacity > 0.12 && (
+                      <div
+                        className="swipe-stamp pointer-events-none absolute right-4 top-7 rounded-2xl border-[5px] border-coral px-3 py-1 font-display text-3xl uppercase tracking-wide text-coral"
+                        style={{
+                          opacity: passOpacity,
+                          transform: `rotate(12deg) scale(${0.85 + passOpacity * 0.2})`,
+                        }}
+                      >
+                        Нет
+                      </div>
                     )}
 
                     <div className="absolute inset-x-0 bottom-0 space-y-2 p-4 text-cream sm:p-5">
                       <div className="flex items-end justify-between gap-3">
                         <div className="min-w-0">
-                          <h2 className="font-display text-2xl leading-tight sm:text-3xl">
+                          <h2 className="font-display text-2xl leading-none sm:text-3xl">
                             {card.title}
                           </h2>
-                          <p className="mt-1 text-sm text-cream/75">
+                          <p className="mt-1.5 text-sm font-semibold text-cream/75">
                             {card.condition} · {card.city}
                             {card.district ? `, ${card.district}` : ""}
                           </p>
                         </div>
-                        <span className="shrink-0 rounded-lg bg-cream/15 px-2 py-1 text-xs backdrop-blur">
+                        <span className="shrink-0 rounded-full bg-sand px-2.5 py-1 text-xs font-black text-ink">
                           {card.matchScore}%
                         </span>
                       </div>
                       {card.wantText && (
-                        <p className="line-clamp-2 text-sm text-sand">
-                          Хочет: {card.wantText}
+                        <p className="line-clamp-2 rounded-2xl bg-white/10 px-3 py-2 text-sm font-semibold text-sand">
+                          хочет: {card.wantText}
                         </p>
                       )}
                       <div className="flex items-center gap-2 pt-1">
@@ -332,20 +389,15 @@ export function SwipeDeck() {
                             "https://placehold.co/40x40"
                           }
                           alt=""
-                          className="h-8 w-8 rounded-full object-cover ring-2 ring-cream/30"
+                          className="h-8 w-8 rounded-full object-cover ring-2 ring-sand"
                         />
                         <div className="min-w-0 text-sm">
-                          <p className="truncate font-medium">{card.owner.name}</p>
-                          <p className="text-xs text-cream/60">
+                          <p className="truncate font-bold">{card.owner.name}</p>
+                          <p className="text-xs font-semibold text-cream/60">
                             {card.matchReasons[0]}
                           </p>
                         </div>
                       </div>
-                      {card.suggestedOffer && (
-                        <p className="text-xs text-cream/55">
-                          Предложим: {card.suggestedOffer.title}
-                        </p>
-                      )}
                     </div>
                   </div>
                 );
@@ -355,29 +407,35 @@ export function SwipeDeck() {
       </div>
 
       {cards.length > 0 && (
-        <div className="flex items-center justify-center gap-6 pb-2 animate-rise">
+        <div className="flex items-center justify-center gap-5 pb-1">
           <button
             type="button"
             disabled={busy}
             aria-label="Пропустить"
             onClick={() => top && commit("PASS", top)}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-coral shadow-lg shadow-coral/20 ring-1 ring-coral/20 transition hover:scale-105 active:scale-95 disabled:opacity-50"
+            className={clsx(
+              "flex h-16 w-16 items-center justify-center rounded-full bg-coral text-white shadow-[0_8px_0_#c44a3a] transition active:translate-y-1 active:shadow-none disabled:opacity-50",
+              passOpacity > 0.4 && "scale-110",
+            )}
           >
-            <X size={28} strokeWidth={2.5} />
+            <X size={30} strokeWidth={2.8} />
           </button>
           <button
             type="button"
             disabled={busy || !canLike}
             aria-label="Хочу обмен"
             onClick={() => top && commit("LIKE", top)}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-forest text-cream shadow-lg shadow-forest/30 transition hover:scale-105 active:scale-95 disabled:opacity-50"
+            className={clsx(
+              "flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-sand text-ink shadow-[0_8px_0_#b8d63a] transition active:translate-y-1 active:shadow-none disabled:opacity-50",
+              likeOpacity > 0.4 && "scale-110 animate-pop",
+            )}
           >
-            <Heart size={30} fill="currentColor" />
+            <Heart size={32} fill="currentColor" />
           </button>
         </div>
       )}
 
-      <p className="text-center text-xs text-ink/40">
+      <p className="text-center text-xs font-bold text-ink/35">
         <Link href="/browse" className="underline-offset-2 hover:underline">
           Каталог списком
         </Link>
@@ -388,32 +446,32 @@ export function SwipeDeck() {
       </p>
 
       {match && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-          <div className="w-full max-w-sm animate-rise rounded-3xl bg-cream p-6 shadow-2xl">
-            <p className="text-center font-display text-3xl text-forest">
-              Это матч!
-            </p>
-            <p className="mt-2 text-center text-sm text-ink/65">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-4 sm:items-center">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-cream p-6 shadow-[0_20px_60px_rgba(23,21,31,0.3)] animate-bouncein">
+            <ConfettiBurst />
+            <ToyMascot className="mx-auto w-28" mood="yay" />
+            <p className="text-center font-display text-4xl text-ink">Это матч!</p>
+            <p className="mt-2 text-center text-sm font-semibold text-ink/60">
               Вы и {match.theirUserName} хотите обменяться
             </p>
-            <p className="mt-4 text-center text-base font-medium text-ink">
+            <p className="mt-4 rounded-3xl bg-sand px-3 py-3 text-center text-base font-extrabold text-ink">
               {match.myItemTitle}
               <span className="mx-2 text-coral">⇄</span>
               {match.theirItemTitle}
             </p>
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-5 flex flex-col gap-2">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => startTrade()}
-                className="inline-flex min-h-12 items-center justify-center rounded-xl bg-coral px-4 font-semibold text-white"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-forest px-4 font-extrabold text-white shadow-[0_6px_0_#6f63d6]"
               >
                 Начать обмен
               </button>
               <button
                 type="button"
                 onClick={() => setMatch(null)}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl text-sm text-ink/60"
+                className="inline-flex min-h-11 items-center justify-center rounded-full text-sm font-bold text-ink/50"
               >
                 Продолжить свайпать
               </button>

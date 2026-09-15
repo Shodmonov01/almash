@@ -73,7 +73,7 @@ export default function MatchesPage() {
   return (
     <div className="space-y-8 animate-rise">
       <div>
-        <h1 className="font-display text-3xl text-forest">Матчи</h1>
+        <h1 className="font-display text-4xl text-ink">Матчи</h1>
         <p className="text-ink/60">
           Взаимные свайпы и подсказки по «хочу получить».{" "}
           <Link href="/" className="text-coral underline-offset-2 hover:underline">
