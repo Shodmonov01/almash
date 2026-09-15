@@ -63,10 +63,17 @@ export function SwipeDeck() {
       const d = await api<{ cards: SwipeCard[]; myItemCount: number }>(
         "/api/swipe/deck",
       );
-      setCards(d.cards);
-      setMyItemCount(d.myItemCount);
+      setCards(d.cards || []);
+      setMyItemCount(
+        typeof d.myItemCount === "number"
+          ? d.myItemCount
+          : (d.cards || []).some((c) => c.suggestedOffer)
+            ? 1
+            : 0,
+      );
     } catch {
       setCards([]);
+      setMyItemCount(0);
     } finally {
       setLoading(false);
     }
@@ -83,11 +90,12 @@ export function SwipeDeck() {
 
   const top = cards[0] ?? null;
   topIdRef.current = top?.id ?? null;
+  const canLike = myItemCount > 0 || !!top?.suggestedOffer;
 
   const commit = useCallback(
     async (direction: "LIKE" | "PASS", card: SwipeCard) => {
       if (busy) return;
-      if (direction === "LIKE" && myItemCount === 0) {
+      if (direction === "LIKE" && myItemCount === 0 && !card.suggestedOffer) {
         setExit(null);
         setDrag({ x: 0, y: 0, active: false });
         return;
@@ -359,7 +367,7 @@ export function SwipeDeck() {
           </button>
           <button
             type="button"
-            disabled={busy || myItemCount === 0}
+            disabled={busy || !canLike}
             aria-label="Хочу обмен"
             onClick={() => top && commit("LIKE", top)}
             className="flex h-16 w-16 items-center justify-center rounded-full bg-forest text-cream shadow-lg shadow-forest/30 transition hover:scale-105 active:scale-95 disabled:opacity-50"
