@@ -21,10 +21,23 @@ type Match = {
   chain?: { viaUserId: string; viaItemTitle: string }[];
 };
 
+type Mutual = {
+  theirItem: {
+    id: string;
+    title: string;
+    city: string;
+    media: { url: string }[];
+    owner: { id: string; name: string; avatarUrl: string | null; city: string };
+  };
+  myItem: { id: string; title: string; media: { url: string }[] };
+};
+
 export default function MatchesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [mutual, setMutual] = useState<Mutual[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -33,63 +46,141 @@ export default function MatchesPage() {
   useEffect(() => {
     if (!user) return;
     api<{ matches: Match[] }>("/api/matches").then((d) => setMatches(d.matches));
+    api<{ mutualMatches: Mutual[] }>("/api/swipe/deck").then((d) =>
+      setMutual(d.mutualMatches || []),
+    );
   }, [user]);
+
+  async function startFromMutual(m: Mutual) {
+    setBusyId(m.theirItem.id);
+    try {
+      const d = await api<{ trade: { id: string } }>("/api/trades", {
+        method: "POST",
+        body: JSON.stringify({
+          targetItemIds: [m.theirItem.id],
+          offeredItemIds: [m.myItem.id],
+          message: "Матч из свайпа — давай обменяемся!",
+        }),
+      });
+      router.push(`/trades/${d.trade.id}`);
+    } catch {
+      setBusyId(null);
+    }
+  }
 
   if (!user) return null;
 
   return (
-    <div className="space-y-6 animate-rise">
+    <div className="space-y-8 animate-rise">
       <div>
-        <h1 className="font-display text-3xl text-forest">Match</h1>
+        <h1 className="font-display text-3xl text-forest">Матчи</h1>
         <p className="text-ink/60">
-          Прямые взаимные совпадения и простые цепочки (фаза 2, упрощённо).
+          Взаимные свайпы и подсказки по «хочу получить».{" "}
+          <Link href="/" className="text-coral underline-offset-2 hover:underline">
+            Свайпать дальше
+          </Link>
         </p>
       </div>
 
-      {matches.length === 0 ? (
-        <p className="rounded-2xl bg-white/60 p-8 text-center text-ink/60">
-          Пока нет матчей. Добавьте объявления с блоком «хочу получить».
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {matches.map((m, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:p-4"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
-                alt=""
-                className="h-20 w-full rounded-xl object-cover sm:h-16 sm:w-16"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-coral">
-                  {m.type === "DIRECT" ? "Прямой match" : "Цепочка"} · score{" "}
-                  {m.score}
-                </p>
-                <p className="font-medium">{m.reason}</p>
-                <p className="text-sm text-ink/60">
-                  {m.myItem ? `${m.myItem.title} ⇄ ` : ""}
-                  {m.theirItem.title} · {m.theirItem.owner.name} ·{" "}
-                  {m.theirItem.city}
-                </p>
-                {m.chain && (
-                  <p className="text-xs text-ink/45">
-                    через: {m.chain.map((c) => c.viaItemTitle).join(" → ")}
-                  </p>
-                )}
-              </div>
-              <Link
-                href={`/items/${m.theirItem.id}`}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-forest px-4 py-2 text-sm text-cream sm:w-auto"
+      <section className="space-y-3">
+        <h2 className="font-display text-xl text-forest">Взаимные свайпы</h2>
+        {mutual.length === 0 ? (
+          <p className="rounded-2xl bg-white/60 p-6 text-center text-sm text-ink/60">
+            Пока нет взаимных лайков. Свайпните вправо то, что хотите, и ждите
+            ответа.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {mutual.map((m) => (
+              <div
+                key={`${m.theirItem.id}-${m.myItem.id}`}
+                className="flex flex-col gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-coral/20 sm:flex-row sm:items-center sm:gap-4 sm:p-4"
               >
-                Открыть
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
+                <div className="flex gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.myItem.media[0]?.url || "https://placehold.co/80"}
+                    alt=""
+                    className="h-16 w-16 rounded-xl object-cover"
+                  />
+                  <span className="self-center text-coral">⇄</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
+                    alt=""
+                    className="h-16 w-16 rounded-xl object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-coral">Это матч</p>
+                  <p className="font-medium">
+                    {m.myItem.title} ⇄ {m.theirItem.title}
+                  </p>
+                  <p className="text-sm text-ink/60">
+                    с {m.theirItem.owner.name} · {m.theirItem.city}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === m.theirItem.id}
+                  onClick={() => startFromMutual(m)}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-coral px-4 text-sm font-medium text-white sm:w-auto"
+                >
+                  Начать обмен
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display text-xl text-forest">Подсказки</h2>
+        {matches.length === 0 ? (
+          <p className="rounded-2xl bg-white/60 p-6 text-center text-sm text-ink/60">
+            Пока нет матчей. Добавьте объявления с блоком «хочу получить».
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {matches.map((m, i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:p-4"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
+                  alt=""
+                  className="h-20 w-full rounded-xl object-cover sm:h-16 sm:w-16"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-coral">
+                    {m.type === "DIRECT" ? "Прямой match" : "Цепочка"} · score{" "}
+                    {m.score}
+                  </p>
+                  <p className="font-medium">{m.reason}</p>
+                  <p className="text-sm text-ink/60">
+                    {m.myItem ? `${m.myItem.title} ⇄ ` : ""}
+                    {m.theirItem.title} · {m.theirItem.owner.name} ·{" "}
+                    {m.theirItem.city}
+                  </p>
+                  {m.chain && (
+                    <p className="text-xs text-ink/45">
+                      через: {m.chain.map((c) => c.viaItemTitle).join(" → ")}
+                    </p>
+                  )}
+                </div>
+                <Link
+                  href={`/items/${m.theirItem.id}`}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-forest px-4 py-2 text-sm text-cream sm:w-auto"
+                >
+                  Открыть
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

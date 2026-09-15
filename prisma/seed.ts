@@ -18,6 +18,7 @@ async function main() {
   await prisma.tradeParty.deleteMany();
   await prisma.trade.deleteMany();
   await prisma.favorite.deleteMany();
+  await prisma.swipe.deleteMany();
   await prisma.setItem.deleteMany();
   await prisma.itemSet.deleteMany();
   await prisma.itemMedia.deleteMany();
@@ -201,9 +202,11 @@ async function main() {
     },
   ];
 
+  const created: { id: string; ownerId: string; title: string }[] = [];
   for (const raw of itemsData) {
     const { photos, ...data } = raw;
     const item = await prisma.item.create({ data });
+    created.push({ id: item.id, ownerId: item.ownerId, title: item.title });
     await prisma.itemMedia.createMany({
       data: photos.map((p, i) => ({
         itemId: item.id,
@@ -214,6 +217,29 @@ async function main() {
       })),
     });
   }
+
+  const aliyaLego = created.find((i) => i.title.includes("Technic"))!;
+  const boburCars = created.find((i) => i.title.includes("Hot Wheels"))!;
+  const dilnozaBear = created.find((i) => i.title.includes("медведь"))!;
+
+  // Bobur already liked Aliya's LEGO — so when Aliya swipes right on Hot Wheels → match
+  await prisma.swipe.create({
+    data: {
+      userId: bobur.id,
+      itemId: aliyaLego.id,
+      direction: "LIKE",
+      offeredItemId: boburCars.id,
+    },
+  });
+  // Dilnoza liked Aliya's figs interest via LEGO want — pass example on bear skip later
+  await prisma.swipe.create({
+    data: {
+      userId: dilnoza.id,
+      itemId: aliyaLego.id,
+      direction: "LIKE",
+      offeredItemId: dilnozaBear.id,
+    },
+  });
 
   await prisma.forbiddenCategory.createMany({
     data: [

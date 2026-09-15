@@ -27,7 +27,8 @@ npm run jobs      # expire offers + meeting reminders
 
 ## Что умеет (углублённый MVP)
 
-- Объявления, поиск, лента «Подходит мне» со scoring
+- **Свайп как в Tinder** — главный экран: вправо «обмен», влево «пропуск», взаимный матч → старт сделки
+- Объявления, каталог `/browse`, лента «Подходит мне» со scoring
 - Предложения N⇄M, **UI изменения состава**, версии + frozen snapshots
 - Чат с антифродом (доплата/карты/контакты), rate limits, risk score
 - Загрузка фото с watermark `SwapToy · itemId` + duplicate phash → moderation queue
@@ -42,7 +43,7 @@ npm run jobs      # expire offers + meeting reminders
 
 ## Структура
 
-- `src/lib/services` — trades, media, matching, rate-limit, telegram-auth
+- `src/lib/services` — trades, media, matching, **swipe**, rate-limit, telegram-auth
 - `src/lib/jobs` — maintenance (expiry/reminders)
-- `src/app/api` — REST
+- `src/app/api` — REST (`/api/swipe`, `/api/swipe/deck`)
 - `vitest/` — тесты

@@ -6,7 +6,7 @@ import {
   Bell,
   Heart,
   Home,
-  MessageCircle,
+  Layers,
   PlusCircle,
   RefreshCw,
   Shield,
@@ -16,21 +16,21 @@ import clsx from "clsx";
 import { useAuth } from "./AuthProvider";
 
 const desktopLinks = [
-  { href: "/", label: "Найти", icon: Home },
+  { href: "/", label: "Свайп", icon: Heart },
+  { href: "/browse", label: "Каталог", icon: Layers },
   { href: "/items/new", label: "Добавить", icon: PlusCircle },
   { href: "/trades", label: "Обмены", icon: RefreshCw },
-  { href: "/favorites", label: "Избранное", icon: Heart },
-  { href: "/matches", label: "Match", icon: MessageCircle },
+  { href: "/matches", label: "Матчи", icon: Home },
   { href: "/notifications", label: "Алерты", icon: Bell },
   { href: "/profile", label: "Профиль", icon: UserIcon },
 ];
 
 /** Primary thumb-zone tabs for phones */
 const mobileTabs = [
-  { href: "/", label: "Найти", icon: Home },
+  { href: "/", label: "Свайп", icon: Heart },
   { href: "/trades", label: "Обмены", icon: RefreshCw },
   { href: "/items/new", label: "Добавить", icon: PlusCircle, emphasize: true },
-  { href: "/matches", label: "Match", icon: MessageCircle },
+  { href: "/browse", label: "Каталог", icon: Layers },
   { href: "/profile", label: "Профиль", icon: UserIcon },
 ];
 
@@ -42,6 +42,7 @@ function isActive(pathname: string, href: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const swipeHome = pathname === "/";
 
   return (
     <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
@@ -114,7 +115,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ) : (
               <Link
                 href="/login"
-                className="inline-flex h-10 items-center rounded-xl bg-coral px-3.5 text-sm font-medium text-white"
+                className="inline-flex h-10 items-center rounded-full bg-coral px-3.5 text-sm font-medium text-white"
               >
                 Войти
               </Link>
@@ -123,7 +124,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:py-6 md:pb-8">
+      <main
+        className={clsx(
+          "mx-auto w-full flex-1 px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-4 sm:py-6 md:pb-8",
+          swipeHome ? "max-w-lg" : "max-w-6xl",
+        )}
+      >
         {children}
       </main>
 

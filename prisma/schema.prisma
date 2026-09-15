@@ -39,6 +39,7 @@ model User {
 
   items            Item[]
   favorites        Favorite[]
+  swipes           Swipe[]
   tradeParties     TradeParty[]
   messages         Message[]
   reviewsAuthored  Review[]  @relation("ReviewAuthor")
@@ -88,6 +89,8 @@ model Item {
   owner           User     @relation(fields: [ownerId], references: [id])
   media           ItemMedia[]
   favorites       Favorite[]
+  swipes          Swipe[]  @relation("SwipeTarget")
+  offeredInSwipes Swipe[]  @relation("SwipeOffer")
   tradeItems      TradeItem[]
   setItems        SetItem[]
 
@@ -147,6 +150,25 @@ model Favorite {
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemId])
+}
+
+/// Tinder-style decision: LIKE (right) or PASS (left) on someone else's item.
+model Swipe {
+  id            String   @id @default(cuid())
+  userId        String
+  itemId        String // target item being judged
+  direction     String // LIKE | PASS
+  offeredItemId String? // what I would give on LIKE (best auto-pick)
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item          Item     @relation("SwipeTarget", fields: [itemId], references: [id], onDelete: Cascade)
+  offeredItem   Item?    @relation("SwipeOffer", fields: [offeredItemId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, itemId])
+  @@index([userId, direction])
+  @@index([itemId])
+  @@index([offeredItemId])
 }
 
 model Trade {
