@@ -12,8 +12,16 @@ ROOT="${SWAPTOY_ROOT:-$HOME/swaptoy-app}"
 REPO="${SWAPTOY_REPO:-https://github.com/Shodmonov01/almash.git}"
 BRANCH="${SWAPTOY_BRANCH:-cursor/production-server-4f8d}"
 LOG="${SWAPTOY_WATCH_LOG:-$HOME/swaptoy/watch.log}"
+LOCK="${SWAPTOY_LOCK:-$HOME/swaptoy/deploy.lock}"
+REV_FILE="$ROOT/.deployed-rev"
 
-mkdir -p "$(dirname "$LOG")" "$ROOT"
+mkdir -p "$(dirname "$LOG")" "$(dirname "$LOCK")" "$ROOT"
+
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  echo "$(date -Is) skip: deploy already running" >>"$LOG"
+  exit 0
+fi
 exec >>"$LOG" 2>&1
 
 if [ ! -d "$SRC/.git" ]; then
@@ -31,6 +39,13 @@ if [ ! -f "$SRC/package.json" ] || ! grep -q '"next"' "$SRC/package.json"; then
   exit 0
 fi
 
+NEW_REV="$(git rev-parse HEAD)"
+OLD_REV="$(cat "$REV_FILE" 2>/dev/null || true)"
+if [ "$NEW_REV" = "$OLD_REV" ] && [ -f "$ROOT/.next/BUILD_ID" ]; then
+  echo "$(date -Is) skip: already on $(git rev-parse --short HEAD)"
+  exit 0
+fi
+
 echo "$(date -Is) deploy $(git rev-parse --short HEAD) branch=$BRANCH"
 
 rsync -a --delete \
@@ -38,6 +53,7 @@ rsync -a --delete \
   --exclude .next \
   --exclude .git \
   --exclude .env \
+  --exclude .deployed-rev \
   --exclude "*.db" \
   --exclude "*.db-journal" \
   --exclude public/uploads \
@@ -51,6 +67,7 @@ if [ ! -f "$ROOT/.env" ]; then
 fi
 
 cd "$ROOT"
+rm -rf node_modules
 npm ci
 
 # If production DATABASE_URL is postgres, flip Prisma provider before generate.
@@ -75,4 +92,5 @@ fi
 npx next build
 chmod +x "$ROOT/scripts/start-prod.sh"
 SWAPTOY_ROOT="$ROOT" bash "$ROOT/scripts/start-prod.sh"
+echo "$NEW_REV" >"$REV_FILE"
 echo "$(date -Is) done"
