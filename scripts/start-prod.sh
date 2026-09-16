@@ -35,6 +35,8 @@ set -a
 [ -f "$ROOT/.env" ] && . "$ROOT/.env"
 set +a
 
-nohup npx next start -H "$HOST" -p "$PORT" >>"$LOG" 2>&1 &
+# Detach from the deploy flock (fd 9) so `next start` cannot hold
+# ~/swaptoy/deploy.lock forever and block later cron deploys.
+setsid npx next start -H "$HOST" -p "$PORT" >>"$LOG" 2>&1 9>&- </dev/null &
 echo $! >"$PID_FILE"
 echo "started pid=$(cat "$PID_FILE") port=$PORT"
