@@ -21,11 +21,19 @@ function deviceFingerprint() {
   return fp;
 }
 
+type RegisterInput = {
+  username: string;
+  password: string;
+  name: string;
+  city: string;
+};
+
 type AuthCtx = {
   user: User | null;
   loading: boolean;
   refresh: () => Promise<void>;
-  login: (username: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -50,11 +58,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const login = async (username: string) => {
+  const login = async (username: string, password: string) => {
     const data = await api<{ user: User }>("/api/auth", {
       method: "POST",
       body: JSON.stringify({
+        action: "login",
         username,
+        password,
+        deviceFingerprint: deviceFingerprint(),
+      }),
+    });
+    setUser(data.user);
+  };
+
+  const register = async (input: RegisterInput) => {
+    const data = await api<{ user: User }>("/api/auth", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "register",
+        ...input,
         deviceFingerprint: deviceFingerprint(),
       }),
     });
@@ -67,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ user, loading, refresh, login, logout }}>
+    <Ctx.Provider value={{ user, loading, refresh, login, register, logout }}>
       {children}
     </Ctx.Provider>
   );

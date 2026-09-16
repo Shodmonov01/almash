@@ -216,27 +216,6 @@ export function SwipeDeck() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-3">
-      <header className="flex items-end justify-between gap-3 animate-rise">
-        <div>
-          <p className="font-display text-[2rem] leading-none text-ink sm:text-4xl">
-            обменяться?
-          </p>
-          <p className="mt-1 text-sm font-semibold text-ink/50">
-            вправо — да · влево — нет
-          </p>
-        </div>
-        <ToyMascot className="w-16 shrink-0 sm:w-20" mood={exit === "right" ? "yay" : "idle"} />
-      </header>
-
-      <div className="flex gap-2">
-        <span className="rounded-full bg-coral px-3 py-1 text-xs font-extrabold text-white">
-          ← пропуск
-        </span>
-        <span className="rounded-full bg-sand px-3 py-1 text-xs font-extrabold text-ink">
-          обмен →
-        </span>
-      </div>
-
       {myItemCount === 0 && (
         <div className="rounded-3xl bg-coral px-4 py-3 text-sm font-bold text-white shadow-[0_6px_0_#c44a3a]">
           Сначала добавьте свою игрушку — иначе нечем меняться.{" "}
@@ -434,16 +413,6 @@ export function SwipeDeck() {
           </button>
         </div>
       )}
-
-      <p className="text-center text-xs font-bold text-ink/35">
-        <Link href="/browse" className="underline-offset-2 hover:underline">
-          Каталог списком
-        </Link>
-        {" · "}
-        <Link href="/matches" className="underline-offset-2 hover:underline">
-          Матчи
-        </Link>
-      </p>
 
       {match && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-4 sm:items-center">

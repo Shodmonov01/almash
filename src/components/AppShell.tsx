@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "./AuthProvider";
+import { api } from "@/lib/client";
 
 const desktopLinks = [
   { href: "/", label: "Свайп", icon: Heart },
@@ -21,7 +23,6 @@ const desktopLinks = [
   { href: "/items/new", label: "Добавить", icon: Plus },
   { href: "/trades", label: "Обмены", icon: RefreshCw },
   { href: "/matches", label: "Матчи", icon: Home },
-  { href: "/notifications", label: "Алерты", icon: Bell },
   { href: "/profile", label: "Профиль", icon: UserIcon },
 ];
 
@@ -42,6 +43,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
   const swipeHome = pathname === "/";
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    api<{ unread: number }>("/api/notifications")
+      .then((d) => setUnread(d.unread || 0))
+      .catch(() => setUnread(0));
+  }, [user, pathname]);
 
   return (
     <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
@@ -89,18 +101,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link
-              href="/notifications"
-              className={clsx(
-                "inline-flex h-10 w-10 items-center justify-center rounded-full transition lg:hidden",
-                isActive(pathname, "/notifications")
-                  ? "bg-ink text-cream"
-                  : "bg-white text-ink shadow-sm",
-              )}
-              aria-label="Уведомления"
-            >
-              <Bell size={18} />
-            </Link>
+            {user && (
+              <Link
+                href="/notifications"
+                className={clsx(
+                  "relative inline-flex h-10 w-10 items-center justify-center rounded-full transition",
+                  isActive(pathname, "/notifications")
+                    ? "bg-ink text-cream"
+                    : "bg-white text-ink shadow-sm",
+                )}
+                aria-label="Уведомления"
+              >
+                <Bell size={18} />
+                {unread > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-coral px-1 text-[10px] font-black text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </Link>
+            )}
             {user ? (
               <Link
                 href="/profile"

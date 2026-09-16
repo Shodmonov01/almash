@@ -265,7 +265,7 @@ async function main() {
   });
 
   console.log("Seed OK");
-  console.log({ admin: admin.username, aliya: aliya.username, bobur: bobur.username, dilnoza: dilnoza.username });
+  console.log("seeded catalog data");
 }
 
 main()
