@@ -1,26 +1,21 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
-/coverage
-
-# next.js
-/.next/
-/out/
+coverage/
 
 # production
-/build
+dist/
+build/
+.next/
+out/
 
 # misc
 .DS_Store
 *.pem
+*.tsbuildinfo
 
 # debug
 npm-debug.log*
@@ -40,12 +35,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
 
-/src/generated/prisma
-
-# uploads (keep folder via .gitkeep)
-/public/uploads/*
-!/public/uploads/.gitkeep
+# generated
+src/generated/

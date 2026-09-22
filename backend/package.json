@@ -1,0 +1,40 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:passwords": "tsx prisma/set-demo-passwords.ts",
+    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "jobs": "tsx -e \"import('./src/lib/jobs/maintenance.ts').then(m=>m.runMaintenanceJobs().then(console.log))\""
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.0.1",
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/static": "^8.2.0",
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.3.3",
+    "jose": "^6.2.12",
+    "prisma": "^5.22.0",
+    "sharp": "^0.35.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.30",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9"
+  }
+}
