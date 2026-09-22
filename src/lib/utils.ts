@@ -1,0 +1,100 @@
+import { prisma } from "./db";
+
+export async function writeAudit(params: {
+  userId?: string | null;
+  tradeId?: string | null;
+  action: string;
+  meta?: unknown;
+}) {
+  await prisma.auditLog.create({
+    data: {
+      userId: params.userId ?? null,
+      tradeId: params.tradeId ?? null,
+      action: params.action,
+      metaJson: params.meta ? JSON.stringify(params.meta) : null,
+    },
+  });
+}
+
+export async function notify(params: {
+  userId: string;
+  tradeId?: string | null;
+  type: string;
+  title: string;
+  body: string;
+}) {
+  await prisma.notification.create({
+    data: {
+      userId: params.userId,
+      tradeId: params.tradeId ?? null,
+      type: params.type,
+      title: params.title,
+      body: params.body,
+    },
+  });
+}
+
+export function nextPublicTradeId(seq: number, year = new Date().getFullYear()) {
+  return `EX-${year}-${String(seq).padStart(6, "0")}`;
+}
+
+export function randomCode(len = 4) {
+  let s = "";
+  for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
+  return s;
+}
+
+export function randomToken(len = 24) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let s = "";
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+export function calcTrustLevel(completed: number, rating: number, disputes: number) {
+  if (completed >= 100 && rating >= 4.5 && disputes < 5) return "TRUSTED";
+  if (completed >= 20 && rating >= 4.0) return "RELIABLE";
+  if (completed >= 5) return "VERIFIED";
+  return "NEW";
+}
+
+export function parseJsonArray(value: string | null | undefined): string[] {
+  if (!value) return [];
+  try {
+    const v = JSON.parse(value);
+    return Array.isArray(v) ? v.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function itemSnapshot(item: {
+  id: string;
+  title: string;
+  description: string;
+  condition: string;
+  completeness: string | null;
+  brand: string | null;
+  model: string | null;
+  hasDamage: boolean;
+  damageNotes: string | null;
+  missingParts: string | null;
+  serialNumber: string | null;
+  media?: { url: string; type: string; hash: string | null }[];
+}) {
+  return JSON.stringify({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    condition: item.condition,
+    completeness: item.completeness,
+    brand: item.brand,
+    model: item.model,
+    hasDamage: item.hasDamage,
+    damageNotes: item.damageNotes,
+    missingParts: item.missingParts,
+    serialNumber: item.serialNumber,
+    media: item.media ?? [],
+    frozenAt: new Date().toISOString(),
+  });
+}
