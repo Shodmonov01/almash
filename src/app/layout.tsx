@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
-import { Fraunces, Nunito } from "next/font/google";
+import { Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AppShell } from "@/components/AppShell";
 import { OnboardingGate } from "@/components/OnboardingGate";
 
-const display = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin", "latin-ext"],
-});
-
 const sans = Nunito({
   variable: "--font-sans",
   subsets: ["latin", "latin-ext", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
-  title: "SwapToy — безопасный обмен игрушками",
+  title: "SwapToy — весёлый обмен игрушками",
   description:
     "Платформа обмена игрушками и детскими аксессуарами без денег, продаж и доплат.",
   appleWebApp: {
@@ -34,7 +30,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#1a5f4a",
+  themeColor: "#8B7CFF",
 };
 
 export default function RootLayout({
@@ -42,7 +38,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body className={`${display.variable} ${sans.variable} antialiased`}>
+      <body className={`${sans.variable} antialiased`}>
         <AuthProvider>
           <OnboardingGate>
             <AppShell>{children}</AppShell>

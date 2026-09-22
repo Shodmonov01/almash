@@ -2,8 +2,19 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const PLACEHOLDER = (seed: string, label: string) =>
-  `https://placehold.co/600x600/1a5f4a/ffffff/png?text=${encodeURIComponent(label)}&font=roboto`;
+const TONES = [
+  ["8B7CFF", "F7F3EA"],
+  ["9EE4F2", "17151F"],
+  ["FF6D57", "F7F3EA"],
+  ["C4B5FF", "17151F"],
+  ["D6F15C", "17151F"],
+  ["FFB4EA", "17151F"],
+] as const;
+
+const PLACEHOLDER = (seed: string, label: string, i = 0) => {
+  const [bg, fg] = TONES[i % TONES.length];
+  return `https://placehold.co/600x800/${bg}/${fg}/png?text=${encodeURIComponent(label)}&font=roboto`;
+};
 
 async function main() {
   await prisma.message.deleteMany();
@@ -18,6 +29,7 @@ async function main() {
   await prisma.tradeParty.deleteMany();
   await prisma.trade.deleteMany();
   await prisma.favorite.deleteMany();
+  await prisma.swipe.deleteMany();
   await prisma.setItem.deleteMany();
   await prisma.itemSet.deleteMany();
   await prisma.itemMedia.deleteMany();
@@ -201,19 +213,44 @@ async function main() {
     },
   ];
 
+  const created: { id: string; ownerId: string; title: string }[] = [];
   for (const raw of itemsData) {
     const { photos, ...data } = raw;
     const item = await prisma.item.create({ data });
+    created.push({ id: item.id, ownerId: item.ownerId, title: item.title });
     await prisma.itemMedia.createMany({
       data: photos.map((p, i) => ({
         itemId: item.id,
         type: "PHOTO",
-        url: PLACEHOLDER(item.id + i, p),
+        url: PLACEHOLDER(item.id + i, p, i),
         hash: `hash-${item.id}-${i}`,
         sortOrder: i,
       })),
     });
   }
+
+  const aliyaLego = created.find((i) => i.title.includes("Technic"))!;
+  const boburCars = created.find((i) => i.title.includes("Hot Wheels"))!;
+  const dilnozaBear = created.find((i) => i.title.includes("медведь"))!;
+
+  // Bobur already liked Aliya's LEGO — so when Aliya swipes right on Hot Wheels → match
+  await prisma.swipe.create({
+    data: {
+      userId: bobur.id,
+      itemId: aliyaLego.id,
+      direction: "LIKE",
+      offeredItemId: boburCars.id,
+    },
+  });
+  // Dilnoza liked Aliya's figs interest via LEGO want — pass example on bear skip later
+  await prisma.swipe.create({
+    data: {
+      userId: dilnoza.id,
+      itemId: aliyaLego.id,
+      direction: "LIKE",
+      offeredItemId: dilnozaBear.id,
+    },
+  });
 
   await prisma.forbiddenCategory.createMany({
     data: [
@@ -228,7 +265,7 @@ async function main() {
   });
 
   console.log("Seed OK");
-  console.log({ admin: admin.username, aliya: aliya.username, bobur: bobur.username, dilnoza: dilnoza.username });
+  console.log("seeded catalog data");
 }
 
 main()

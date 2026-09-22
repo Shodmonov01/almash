@@ -93,8 +93,8 @@ export default function NewItemPage() {
             photos.length >= 2
               ? photos
               : [
-                  `https://placehold.co/600x600/1a5f4a/fff?text=${encodeURIComponent(String(fd.get("title")))}+1`,
-                  `https://placehold.co/600x600/e85d4c/fff?text=${encodeURIComponent(String(fd.get("title")))}+2`,
+                  `https://placehold.co/600x800/8B7CFF/F7F3EA?text=${encodeURIComponent(String(fd.get("title")))}+1`,
+                  `https://placehold.co/600x800/D6F15C/17151F?text=${encodeURIComponent(String(fd.get("title")))}+2`,
                 ],
         }),
       });
