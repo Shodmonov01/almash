@@ -9,7 +9,6 @@ coverage/
 # production
 dist/
 build/
-.next/
 out/
 
 # misc
@@ -32,12 +31,12 @@ yarn-error.log*
 *.db
 *.db-journal
 
-# vercel
-.vercel
-
 # uploads
 backend/uploads/*
 !backend/uploads/.gitkeep
 
-# generated
-src/generated/
+# optional SPA bundle copied into the API process on deploy
+backend/public/
+
+# vite cache
+frontend/.vite/

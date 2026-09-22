@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 
 type MiniItem = {
   id: string;
@@ -151,7 +152,7 @@ function Picker({
               }
             >
               <img
-                src={it.media[0]?.url || "https://placehold.co/40"}
+                src={mediaUrl(it.media[0]?.url) || "https://placehold.co/40"}
                 alt=""
                 className="h-10 w-10 rounded-lg object-cover"
               />

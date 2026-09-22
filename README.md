@@ -1,72 +1,92 @@
 # SwapToy — платформа обмена игрушками
 
-MVP+ по [TZ.md](./TZ.md): обмен игрушками и детскими аксессуарами **без денег, продаж и доплат**.
+Обмен игрушками и детскими аксессуарами **без денег, продаж и доплат**. ТЗ: [TZ.md](./TZ.md).
 
-## Стек
+Это **два независимых приложения**, как `client/` и `server/` в synapse-animals: у каждого свой `package.json`, свои зависимости, свой запуск. Общего npm workspace нет.
 
-- **Frontend** — чистый React (Vite + React Router + Tailwind)
-- **Backend** — Fastify + Prisma + SQLite
-- **Сессия** — JWT в cookie + `Authorization: Bearer` (сайт и Telegram Mini App)
+```
+almash/
+  frontend/   React SPA (Vite)     → http://localhost:5173
+  backend/    Fastify + Prisma     → http://localhost:3001
+```
 
-Папки разделены: `frontend/` и `backend/`. Один и тот же фронт открывается как сайт и как Mini App.
+Фронт знает про бэк только через `VITE_API_URL`. Бэк не импортирует код фронта.
 
-## Быстрый старт
+## Требования
+
+- Node.js 20+
+- npm 10+
+- Git
+
+База — SQLite внутри `backend/`. PostgreSQL не нужен.
+
+## Запуск локально
+
+Нужны **два терминала**. Порядок: сначала API, потом UI.
+
+### Backend
 
 ```bash
+cd backend
+cp .env.example .env          # Windows: Copy-Item .env.example .env
 npm install
 npm run db:reset
 npm run dev
 ```
 
-- UI: http://localhost:5173
-- API: http://localhost:3001
+API: http://localhost:3001  
+Health: http://localhost:3001/api/health
 
-Демо-вход: `aliya`, `bobur` (онбординг), `dilnoza`, `admin`  
-Пароль у всех: `demo1234`
+Подробности: [backend/README.md](./backend/README.md).
 
-На экране входа также есть **«Войти через Telegram»** (Mini App `initData` или Login Widget на сайте).
+### Frontend
 
 ```bash
-npm test          # unit-тесты антифрода / match / auth
-npm run db:seed   # только сиды (стирает данные)
-npm run db:passwords  # проставить demo1234 демо-юзерам без пароля, данные не трогает
+cd frontend
+cp .env.example .env          # Windows: Copy-Item .env.example .env
+npm install
+npm run dev
 ```
 
-## Telegram Mini App + сайт
+UI: http://localhost:5173
 
-Оба канала — одно приложение и одни аккаунты.
+В dev Vite проксирует `/api` и `/uploads` на `VITE_API_URL` (по умолчанию `http://localhost:3001`), поэтому CORS не мешает.
 
-1. Создайте бота в [@BotFather](https://t.me/BotFather).
-2. В `backend/.env` укажите:
+Подробности: [frontend/README.md](./frontend/README.md).
 
-```
-TELEGRAM_BOT_TOKEN="123456:ABC..."
-TELEGRAM_BOT_USERNAME="your_bot"
-COOKIE_SECURE="true"
-```
+### Демо-вход
 
-`COOKIE_SECURE=true` только если сайт открывается по **HTTPS**.
+http://localhost:5173/login
 
-3. В BotFather:
-   - `/newapp` — URL Mini App = адрес сайта, например `https://your-domain/`
-   - `/setdomain` — тот же домен (нужен для кнопки Login Widget на сайте)
+| Логин | Заметка |
+| --- | --- |
+| `aliya` | обычный пользователь |
+| `bobur` | онбординг не пройден |
+| `dilnoza` | обычный пользователь |
+| `admin` | админ |
 
-4. Пользователь может:
-   - зарегистрироваться логином/паролем;
-   - войти через Telegram;
-   - в профиле привязать Telegram к уже существующему аккаунту или задать пароль, если сначала вошёл через Telegram.
+Пароль у всех: **`demo1234`**
 
-## Структура
+## Как они связаны
 
-- `frontend/` — React SPA
-- `backend/` — REST API, Prisma, загрузки, джобы
-- `TZ.md` — техническое задание
+| | Frontend | Backend |
+| --- | --- | --- |
+| Зависимости | свой `npm install` | свой `npm install` |
+| Env | `frontend/.env` → `VITE_API_URL` | `backend/.env` → БД, JWT, Telegram |
+| Dev | Vite + proxy | `tsx watch src/server.ts` |
+| Прод | статика `dist/` | REST + `/uploads`; опционально отдаёт `backend/public/` |
+
+Бэкенд **не** смотрит в папку `frontend/`. Если на одном порту нужно отдать и UI, скопируйте собранный фронт в `backend/public/` (так делает серверный деплой).
+
+## Telegram Mini App
+
+Оба канала — одно приложение и одни аккаунты. Настройка бота — в [backend/README.md](./backend/README.md).
 
 ## Автодеплой (ветка `main`)
 
-На сервере cron каждые 2 минуты смотрит `origin/main`. Если коммит новый и в репо уже `frontend/` + `backend/` — собирает и перезапускает `http://IP:8081`. GitHub Secrets не нужны. Сиды не запускаются.
+Cron на VPS тянет `origin/main`, собирает фронт и бэк **отдельно**, копирует `frontend/dist` → `backend/public` и поднимает API на `:8081`. GitHub Secrets не нужны. Сиды не запускаются.
 
-После этого деплоя схема обновится через `prisma db push`. Если на сервере уже есть демо-пользователи без пароля, один раз выполните `npm run db:passwords`.
+`npm run db:reset` на сервере не запускайте: стирает базу.
 
 ## Принцип «без денег»
 

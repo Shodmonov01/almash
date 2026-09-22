@@ -1,4 +1,5 @@
 import { getAuthToken } from "./session";
+import { apiUrl } from "./env";
 
 export async function api<T = unknown>(
   path: string,
@@ -14,7 +15,7 @@ export async function api<T = unknown>(
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...init,
     credentials: "include",
     headers,

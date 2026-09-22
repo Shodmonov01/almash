@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { TRADE_STATUS_LABELS } from "@/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -54,7 +55,7 @@ export default function TradesPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
-                      src={ti.item.media[0]?.url || "https://placehold.co/80"}
+                      src={mediaUrl(ti.item.media[0]?.url) || "https://placehold.co/80"}
                       alt=""
                       className="h-12 w-12 rounded-xl object-cover ring-2 ring-cream sm:h-14 sm:w-14"
                     />

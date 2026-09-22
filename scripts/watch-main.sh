@@ -1,5 +1,5 @@
 #!/bin/bash
-# Server-side auto-deploy: pull origin/main, rebuild, restart :8081.
+# Server-side auto-deploy: pull origin/main, rebuild frontend and backend separately, restart :8081.
 # Does not use GitHub Secrets. Does not touch nginx / :80 / :443.
 set -euo pipefail
 
@@ -41,6 +41,7 @@ rsync -a --delete \
   --exclude .env \
   --exclude "*.db" \
   --exclude uploads \
+  --exclude public \
   "$SRC/backend/" "$APP/backend/"
 rsync -a --delete \
   --exclude node_modules \
@@ -49,16 +50,14 @@ rsync -a --delete \
 if [ -f "$SRC/scripts/server-deploy.sh" ]; then
   cp "$SRC/scripts/server-deploy.sh" "$APP/scripts/server-deploy.sh"
 fi
-if [ -f "$SRC/package.json" ]; then
-  cp "$SRC/package.json" "$APP/package.json"
-fi
-if [ -f "$SRC/package-lock.json" ]; then
-  cp "$SRC/package-lock.json" "$APP/package-lock.json"
-fi
 
 cd "$APP/frontend"
 npm install
 npm run build
+
+rm -rf "$APP/backend/public"
+mkdir -p "$APP/backend/public"
+cp -a "$APP/frontend/dist/." "$APP/backend/public/"
 
 cd "$APP/backend"
 if [ ! -f .env ]; then

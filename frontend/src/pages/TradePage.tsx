@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import {
   DISPUTE_REASONS,
   REVIEW_TAGS,
@@ -544,7 +545,7 @@ function ItemList({
       {items.map((ti) => (
         <li key={ti.item.id} className="flex items-center gap-2 text-sm">
           <img
-            src={ti.item.media[0]?.url || "https://placehold.co/40"}
+            src={mediaUrl(ti.item.media[0]?.url) || "https://placehold.co/40"}
             alt=""
             className="h-10 w-10 rounded-lg object-cover"
           />

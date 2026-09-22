@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Heart, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { ReportButton } from "@/components/ReportButton";
 import { TRUST_LEVELS } from "@/lib/constants";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -108,7 +109,7 @@ export default function ItemPage() {
       <div className="space-y-3">
         <div className="-mx-3 overflow-hidden bg-mist sm:mx-0 sm:rounded-3xl">
           <img
-            src={item.media[0]?.url}
+            src={mediaUrl(item.media[0]?.url)}
             alt={item.title}
             className="aspect-square w-full object-cover"
           />
@@ -118,7 +119,7 @@ export default function ItemPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img
               key={m.url}
-              src={m.url}
+              src={mediaUrl(m.url)}
               alt=""
               className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-forest/10 sm:h-20 sm:w-20"
             />
@@ -162,7 +163,7 @@ export default function ItemPage() {
           className="flex items-center gap-3 rounded-2xl bg-white/70 p-3 ring-1 ring-forest/10"
         >
           <img
-            src={item.owner.avatarUrl || ""}
+            src={mediaUrl(item.owner.avatarUrl) || ""}
             alt=""
             className="h-12 w-12 rounded-full object-cover"
           />
@@ -237,7 +238,7 @@ export default function ItemPage() {
                       }
                     >
                       <img
-                        src={mi.media?.[0]?.url || "https://placehold.co/100"}
+                        src={mediaUrl(mi.media?.[0]?.url) || "https://placehold.co/100"}
                         alt=""
                         className="mb-1 h-16 w-full rounded-lg object-cover"
                       />

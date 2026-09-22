@@ -1,4 +1,5 @@
 import { TRUST_LEVELS } from "@/lib/constants";
+import { mediaUrl } from "@/lib/env";
 import { Link } from "react-router-dom";
 
 export type ItemCardData = {
@@ -33,7 +34,7 @@ export function ItemCard({ item }: { item: ItemCardData }) {
     >
       <div className="relative aspect-square overflow-hidden bg-lilac">
         <img
-          src={item.media[0]?.url || "https://placehold.co/600x600"}
+          src={mediaUrl(item.media[0]?.url) || "https://placehold.co/600x600"}
           alt={item.title}
           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
         />

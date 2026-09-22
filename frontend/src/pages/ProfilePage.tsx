@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { TRUST_LEVELS } from "@/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
@@ -47,7 +48,7 @@ export default function ProfilePage() {
     <div className="space-y-6 animate-rise sm:space-y-8">
       <section className="flex flex-col gap-4 rounded-2xl bg-forest p-4 text-cream sm:flex-row sm:flex-wrap sm:items-center sm:rounded-3xl sm:p-6">
         <img
-          src={user.avatarUrl || ""}
+          src={mediaUrl(user.avatarUrl) || ""}
           alt=""
           className="h-16 w-16 rounded-full object-cover ring-4 ring-cream/20 sm:h-20 sm:w-20"
         />

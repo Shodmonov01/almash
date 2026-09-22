@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { TRUST_LEVELS } from "@/lib/constants";
 import { useParams } from "react-router-dom";
@@ -46,7 +47,7 @@ export default function PublicProfilePage() {
       <section className="rounded-3xl bg-white/80 p-6 ring-1 ring-forest/10">
         <div className="flex items-center gap-4">
           <img
-            src={user.avatarUrl || ""}
+            src={mediaUrl(user.avatarUrl) || ""}
             alt=""
             className="h-16 w-16 rounded-full object-cover"
           />

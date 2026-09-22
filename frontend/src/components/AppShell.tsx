@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "./AuthProvider";
+import { mediaUrl } from "@/lib/env";
 import { Link, useLocation } from "react-router-dom";
 
 const desktopLinks = [
@@ -104,7 +105,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="flex max-w-[40vw] items-center gap-2 rounded-full bg-white py-1 pl-1 pr-2.5 text-sm font-bold shadow-sm sm:pr-3"
               >
                 <img
-                  src={user.avatarUrl || "https://placehold.co/40x40"}
+                  src={mediaUrl(user.avatarUrl) || "https://placehold.co/40x40"}
                   alt=""
                   className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-sand"
                 />

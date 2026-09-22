@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Heart, RotateCcw, X } from "lucide-react";
 import clsx from "clsx";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { useAuth } from "@/components/AuthProvider";
 import { ToyMascot } from "@/components/ToyMascot";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
@@ -315,7 +316,7 @@ export function SwipeDeck() {
                   >
                     <img
                       src={
-                        card.media[0]?.url ||
+                        mediaUrl(card.media[0]?.url) ||
                         "https://placehold.co/600x800/8B7CFF/F7F3EA?text=SwapToy"
                       }
                       alt={card.title}
@@ -380,7 +381,7 @@ export function SwipeDeck() {
                       <div className="flex items-center gap-2 pt-1">
                         <img
                           src={
-                            card.owner.avatarUrl ||
+                            mediaUrl(card.owner.avatarUrl) ||
                             "https://placehold.co/40x40"
                           }
                           alt=""

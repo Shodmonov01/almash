@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 
 type Version = {
   version: number;
@@ -75,7 +76,7 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
                     {it.snapshot?.media?.[0]?.url && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={it.snapshot.media[0].url}
+                        src={mediaUrl(it.snapshot.media[0].url)}
                         alt=""
                         className="mt-2 h-24 w-full rounded-lg object-cover"
                       />

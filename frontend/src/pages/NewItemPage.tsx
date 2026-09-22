@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { CATEGORIES, CONDITIONS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
 
@@ -29,9 +30,10 @@ export default function NewItemPage() {
         fd.append("file", files[i]);
         fd.append("itemId", "draft");
         fd.append("sortOrder", String(uploaded.length + i));
-        const res = await fetch("/api/upload", { method: "POST", body: fd, credentials: "include" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+        const data = await api<{ url: string; duplicateWarning?: boolean }>("/api/upload", {
+          method: "POST",
+          body: fd,
+        });
         urls.push(data.url);
         if (data.duplicateWarning) {
           setError(
@@ -227,7 +229,7 @@ export default function NewItemPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={u}
-                  src={u}
+                  src={mediaUrl(u)}
                   alt=""
                   className="h-16 w-16 rounded-lg object-cover ring-1 ring-forest/10"
                 />

@@ -83,8 +83,10 @@ async function main() {
     decorateReply: true,
   });
 
-  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
-  const frontendIndex = path.join(frontendDist, "index.html");
+  const publicDir = process.env.FRONTEND_DIST
+    ? path.resolve(process.env.FRONTEND_DIST)
+    : path.join(__dirname, "../public");
+  const frontendIndex = path.join(publicDir, "index.html");
   const serveFrontend = fs.existsSync(frontendIndex);
 
   app.get("/api/health", async () => ({ ok: true }));
@@ -132,7 +134,7 @@ async function main() {
 
   if (serveFrontend) {
     await app.register(fastifyStatic, {
-      root: frontendDist,
+      root: publicDir,
       prefix: "/",
       wildcard: false,
       decorateReply: false,

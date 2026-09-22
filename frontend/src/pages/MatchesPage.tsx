@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
+import { mediaUrl } from "@/lib/env";
 import { Link, useNavigate } from "react-router-dom";
 
 type Match = {
@@ -95,13 +96,13 @@ export default function MatchesPage() {
               >
                 <div className="flex gap-2">
                   <img
-                    src={m.myItem.media[0]?.url || "https://placehold.co/80"}
+                    src={mediaUrl(m.myItem.media[0]?.url) || "https://placehold.co/80"}
                     alt=""
                     className="h-16 w-16 rounded-xl object-cover"
                   />
                   <span className="self-center text-coral">⇄</span>
                   <img
-                    src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
+                    src={mediaUrl(m.theirItem.media[0]?.url) || "https://placehold.co/80"}
                     alt=""
                     className="h-16 w-16 rounded-xl object-cover"
                   />
@@ -143,7 +144,7 @@ export default function MatchesPage() {
                 className="flex flex-col gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4 sm:p-4"
               >
                 <img
-                  src={m.theirItem.media[0]?.url || "https://placehold.co/80"}
+                  src={mediaUrl(m.theirItem.media[0]?.url) || "https://placehold.co/80"}
                   alt=""
                   className="h-20 w-full rounded-xl object-cover sm:h-16 sm:w-16"
                 />
