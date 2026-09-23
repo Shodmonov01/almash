@@ -3,26 +3,16 @@ import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { ToyMascot } from "@/components/ToyMascot";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
-const TIPS = [
-  {
-    title: "Только обмен вещами",
-    body: "На SwapToy нет цен, доплат и оплаты. Сделка = ваши предметы ⇄ предметы другого человека.",
-  },
-  {
-    title: "Фиксация условий",
-    body: "Состав обмена подтверждается в интерфейсе. Чат сам по себе сделку не меняет.",
-  },
-  {
-    title: "Встреча вместе",
-    body: "Передавайте предметы одновременно в людном месте. Подтверждение — двумя кодами/QR.",
-  },
-];
+type Tip = { title: string; body: string };
+const TIP_COUNT = 3;
 
 export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { user, refresh } = useAuth();
   const [step, setStep] = useState(0);
   const [show, setShow] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (user && user.onboardingDone === false) setShow(true);
@@ -31,15 +21,22 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
 
   if (!show || !user) return <>{children}</>;
 
-  const tip = TIPS[step];
+  const tips = t("onboarding.tips", { returnObjects: true }) as Tip[];
+  const tip = tips[step] ?? tips[0];
 
   async function finish() {
-    await api("/api/me", {
-      method: "PATCH",
-      body: JSON.stringify({ onboardingDone: true }),
-    });
-    await refresh();
+    // Close right away; a failed save must not trap the user in the sheet
+    // (it will simply show again on the next visit).
     setShow(false);
+    try {
+      await api("/api/me", {
+        method: "PATCH",
+        body: JSON.stringify({ onboardingDone: true }),
+      });
+      await refresh();
+    } catch (e) {
+      console.warn("onboarding: could not save progress", e);
+    }
   }
 
   return (
@@ -47,20 +44,20 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
       {children}
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center sm:p-4">
         <div className="w-full max-w-md animate-bouncein rounded-t-[2rem] bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[2rem] sm:p-6 sm:pb-6">
-          <ToyMascot className="mx-auto w-24" mood={step === TIPS.length - 1 ? "yay" : "wave"} />
+          <ToyMascot className="mx-auto w-24" mood={step === TIP_COUNT - 1 ? "yay" : "wave"} />
           <p className="text-center text-xs font-extrabold uppercase tracking-wide text-forest">
-            Добро пожаловать · {step + 1}/{TIPS.length}
+            {t("onboarding.welcome", { step: step + 1, total: TIP_COUNT })}
           </p>
           <h2 className="mt-2 text-center font-display text-2xl text-ink sm:text-3xl">{tip.title}</h2>
           <p className="mt-2 text-center text-sm font-semibold text-ink/70">{tip.body}</p>
           <div className="mt-5 flex flex-col gap-2 sm:mt-6 sm:flex-row">
-            {step < TIPS.length - 1 ? (
+            {step < TIP_COUNT - 1 ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
                 className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-forest py-3 text-sm font-extrabold text-white shadow-[0_5px_0_#6f63d6]"
               >
-                Дальше
+                {t("onboarding.next")}
               </button>
             ) : (
               <button
@@ -68,7 +65,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
                 onClick={finish}
                 className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-sand py-3 text-sm font-extrabold text-ink shadow-[0_5px_0_#b8d63a]"
               >
-                Понятно, начать
+                {t("onboarding.start")}
               </button>
             )}
             <Link
@@ -76,7 +73,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
               onClick={finish}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-bold text-ink"
             >
-              Добавить игрушку
+              {t("onboarding.addToy")}
             </Link>
           </div>
         </div>

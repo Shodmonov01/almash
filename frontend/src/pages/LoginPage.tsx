@@ -7,12 +7,12 @@ import {
   isTelegramMiniApp,
   requestTelegramWidgetAuth,
 } from "@/lib/telegram";
-
-const DEMO_ACCOUNTS = ["aliya", "bobur", "dilnoza", "admin"] as const;
+import { useTranslation } from "react-i18next";
 
 export default function LoginPage() {
   const { user, login, register, loginTelegram, loading, telegram } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -39,11 +39,27 @@ export default function LoginPage() {
       }
       navigate("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка входа");
+      setError(explainAuthError(e));
     } finally {
       setBusy(false);
     }
   };
+
+  function explainAuthError(e: unknown): string {
+    const err = e as Error & {
+      status?: number;
+      data?: { issues?: { path?: (string | number)[] }[] };
+    };
+    if (mode === "register") {
+      if (err.status === 409) return t("login.errTaken");
+      const field = err.data?.issues?.[0]?.path?.[0];
+      if (field === "username") return t("login.usernameRule");
+      if (field === "password") return t("login.passwordRule");
+      if (field === "name") return t("login.errName");
+      if (field === "city") return t("login.errCity");
+    }
+    return err instanceof Error ? err.message : t("login.error");
+  }
 
   const onTelegram = async () => {
     setBusy(true);
@@ -56,31 +72,23 @@ export default function LoginPage() {
         const widget = await requestTelegramWidgetAuth(telegram.botId);
         await loginTelegram({ telegramWidget: widget });
       } else {
-        throw new Error(
-          "Telegram-вход ещё не настроен. Нужен токен бота от BotFather.",
-        );
+        throw new Error(t("login.telegramNotConfigured"));
       }
       navigate("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка входа через Telegram");
+      setError(e instanceof Error ? e.message : t("login.telegramError"));
     } finally {
       setBusy(false);
     }
-  };
-
-  const fillDemo = (loginName: string) => {
-    setMode("login");
-    setUsername(loginName);
-    setPassword("demo1234");
   };
 
   return (
     <div className="mx-auto max-w-md animate-rise">
       <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0_20px_50px_rgba(23,21,31,0.12)]">
         <div className="relative bg-forest px-6 pb-20 pt-10 text-center text-white">
-          <p className="font-display text-5xl leading-none">SwapToy</p>
+          <p className="font-display text-5xl leading-none">Retoy</p>
           <p className="mt-2 text-sm font-semibold text-white/85">
-            меняйся игрушками — весело и без денег
+            {t("login.tagline")}
           </p>
           <div className="absolute -bottom-12 left-1/2 w-36 -translate-x-1/2">
             <ToyMascot mood="wave" />
@@ -102,7 +110,7 @@ export default function LoginPage() {
                 mode === "login" ? "bg-white text-ink shadow-sm" : "text-ink/50"
               }`}
             >
-              Вход
+              {t("login.tabLogin")}
             </button>
             <button
               type="button"
@@ -111,7 +119,7 @@ export default function LoginPage() {
                 mode === "register" ? "bg-white text-ink shadow-sm" : "text-ink/50"
               }`}
             >
-              Регистрация
+              {t("login.tabRegister")}
             </button>
           </div>
 
@@ -120,7 +128,7 @@ export default function LoginPage() {
               <>
                 <label className="block">
                   <span className="mb-1 block text-xs font-extrabold uppercase tracking-wide text-ink/50">
-                    Имя
+                    {t("login.name")}
                   </span>
                   <input
                     value={name}
@@ -132,7 +140,7 @@ export default function LoginPage() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-extrabold uppercase tracking-wide text-ink/50">
-                    Город
+                    {t("login.city")}
                   </span>
                   <input
                     value={city}
@@ -145,19 +153,36 @@ export default function LoginPage() {
             )}
             <label className="block">
               <span className="mb-1 block text-xs font-extrabold uppercase tracking-wide text-ink/50">
-                Логин
+                {t("login.username")}
               </span>
               <input
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  e.currentTarget.setCustomValidity("");
+                  setUsername(e.target.value);
+                }}
+                onInvalid={(e) => {
+                  if (mode === "register") e.currentTarget.setCustomValidity(t("login.usernameRule"));
+                }}
                 required
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                {...(mode === "register"
+                  ? { pattern: "[A-Za-z0-9_]{3,24}", maxLength: 24 }
+                  : {})}
                 className="w-full rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold outline-none ring-forest/30 focus:ring-2"
               />
+              {mode === "register" && (
+                <span className="mt-1 block text-xs font-semibold text-ink/45">
+                  {t("login.usernameRule")}
+                </span>
+              )}
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-extrabold uppercase tracking-wide text-ink/50">
-                Пароль
+                {t("login.password")}
               </span>
               <input
                 type="password"
@@ -170,40 +195,24 @@ export default function LoginPage() {
                 }
                 className="w-full rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold outline-none ring-forest/30 focus:ring-2"
               />
+              {mode === "register" && (
+                <span className="mt-1 block text-xs font-semibold text-ink/45">
+                  {t("login.passwordRule")}
+                </span>
+              )}
             </label>
             <button
               type="submit"
               disabled={busy}
               className="flex min-h-12 w-full items-center justify-center rounded-full bg-forest text-sm font-extrabold text-white shadow-[0_5px_0_#6f63d6] transition active:translate-y-0.5 active:shadow-none disabled:opacity-60"
             >
-              {mode === "register" ? "Создать аккаунт" : "Войти"}
+              {mode === "register" ? t("login.create") : t("login.submit")}
             </button>
           </form>
 
-          {telegram.demoHint && (
-            <div className="rounded-2xl bg-cream px-3 py-3">
-              <p className="mb-2 text-center text-[11px] font-extrabold uppercase tracking-wide text-ink/45">
-                Демо-аккаунты · пароль demo1234
-              </p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {DEMO_ACCOUNTS.map((loginName) => (
-                  <button
-                    key={loginName}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => fillDemo(loginName)}
-                    className="rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-ink shadow-sm"
-                  >
-                    @{loginName}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div className="flex items-center gap-3 text-xs font-extrabold uppercase tracking-wide text-ink/35">
             <span className="h-px flex-1 bg-ink/10" />
-            или
+            {t("login.or")}
             <span className="h-px flex-1 bg-ink/10" />
           </div>
 
@@ -214,11 +223,11 @@ export default function LoginPage() {
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#2AABEE] text-sm font-extrabold text-white shadow-[0_5px_0_#1e8fc7] transition active:translate-y-0.5 active:shadow-none disabled:opacity-50"
           >
             <TelegramMark />
-            Войти через Telegram
+            {t("login.telegram")}
           </button>
           {!canTelegram && (
             <p className="text-center text-xs font-semibold text-ink/45">
-              Кнопка заработает после настройки бота в BotFather.
+              {t("login.telegramSoon")}
             </p>
           )}
         </div>

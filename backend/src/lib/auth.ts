@@ -4,10 +4,18 @@ import { prisma } from "./db";
 import { httpStore } from "./context";
 
 const COOKIE = process.env.SESSION_COOKIE || "toyswap_session";
-const secret = () =>
-  new TextEncoder().encode(
-    process.env.JWT_SECRET || "toy-swap-dev-secret-change-in-production",
+const secret = () => {
+  const value = process.env.JWT_SECRET;
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!value || value === "change-me" || value.length < 32)
+  ) {
+    throw new Error("JWT_SECRET must be set (32+ chars) in production");
+  }
+  return new TextEncoder().encode(
+    value || "toy-swap-dev-secret-change-in-production",
   );
+};
 
 export type SessionUser = {
   id: string;
@@ -36,6 +44,7 @@ export type ClientUser = {
   createdAt: Date;
   bio: string | null;
   onboardingDone: boolean;
+  tgNotify: boolean;
   riskScoreCached: number;
   hasPassword: boolean;
   telegramLinked: boolean;
@@ -152,6 +161,7 @@ export const clientUserSelect = {
   createdAt: true,
   bio: true,
   onboardingDone: true,
+  tgNotify: true,
   riskScoreCached: true,
   passwordHash: true,
   telegramId: true,
@@ -175,6 +185,7 @@ export function toClientUser(user: {
   createdAt: Date;
   bio: string | null;
   onboardingDone: boolean;
+  tgNotify?: boolean;
   riskScoreCached: number;
   passwordHash?: string | null;
   telegramId?: string | null;
@@ -197,6 +208,7 @@ export function toClientUser(user: {
     createdAt: user.createdAt,
     bio: user.bio,
     onboardingDone: user.onboardingDone,
+    tgNotify: user.tgNotify ?? true,
     riskScoreCached: user.riskScoreCached,
     hasPassword: Boolean(user.passwordHash),
     telegramLinked: Boolean(user.telegramId),

@@ -1,6 +1,7 @@
-import { TRUST_LEVELS } from "@/lib/constants";
 import { mediaUrl } from "@/lib/env";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useLabels } from "@/lib/labels";
 
 export type ItemCardData = {
   id: string;
@@ -23,9 +24,9 @@ export type ItemCardData = {
 };
 
 export function ItemCard({ item }: { item: ItemCardData }) {
-  const trust =
-    TRUST_LEVELS[item.owner.trustLevel as keyof typeof TRUST_LEVELS]?.label ||
-    item.owner.trustLevel;
+  const { t } = useTranslation();
+  const labels = useLabels();
+  const trust = labels.trust(item.owner.trustLevel);
 
   return (
     <Link
@@ -52,7 +53,7 @@ export function ItemCard({ item }: { item: ItemCardData }) {
           </p>
         )}
         <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11px] text-ink/60 sm:gap-2 sm:text-xs">
-          <span className="line-clamp-1">{item.condition}</span>
+          <span className="line-clamp-1">{labels.condition(item.condition)}</span>
           <span className="hidden sm:inline">·</span>
           <span className="line-clamp-1">
             {item.city}
@@ -61,7 +62,7 @@ export function ItemCard({ item }: { item: ItemCardData }) {
         </div>
         {item.wantText && (
           <p className="hidden text-xs text-forest/80 line-clamp-2 sm:block">
-            <span className="font-medium">Хочу:</span> {item.wantText}
+            <span className="font-medium">{t("item.want")}</span> {item.wantText}
           </p>
         )}
         <div className="flex items-center justify-between gap-1 border-t border-forest/5 pt-2 text-[11px] sm:gap-2 sm:text-xs">

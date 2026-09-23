@@ -14,6 +14,7 @@ import TradePage from "@/pages/TradePage";
 import MatchesPage from "@/pages/MatchesPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import FavoritesPage from "@/pages/FavoritesPage";
+import MessagesPage from "@/pages/MessagesPage";
 import AdminPage from "@/pages/AdminPage";
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/matches" element={<MatchesPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

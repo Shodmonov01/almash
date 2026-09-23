@@ -2,8 +2,18 @@ import { FormEvent, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
+import { MAX_VIDEO_MB, uploadMedia, VIDEO_ACCEPT } from "@/lib/media";
 import { CATEGORIES, CONDITIONS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
+import { FancySelect } from "@/components/FancySelect";
+import { useTranslation } from "react-i18next";
+import { useLabels } from "@/lib/labels";
+
+const ALL_SUBCATEGORIES = Object.values(CATEGORIES).flat();
+
+// Same look as the text fields of this form
+const FIELD_TRIGGER =
+  "border-forest/15 bg-cream/40 hover:border-forest/30 focus:border-forest/40 focus:bg-white focus:ring-forest/15";
 
 export default function NewItemPage() {
   const { user, loading } = useAuth();
@@ -11,8 +21,18 @@ export default function NewItemPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("Игрушки");
+  const [subcategory, setSubcategory] = useState(CATEGORIES["Игрушки"]?.[0] ?? "");
+  const [condition, setCondition] = useState<string>(CONDITIONS[0]);
+  const [isOriginal, setIsOriginal] = useState("on");
+  const [wantType, setWantType] = useState("ANY");
+  // Stored values stay Russian (matching compares them with subcategories)
+  const [wantCats, setWantCats] = useState<string[]>([]);
+  const { t } = useTranslation();
+  const labels = useLabels();
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
   const subcats = useMemo(() => CATEGORIES[category] || [], [category]);
 
   if (!loading && !user) {
@@ -24,7 +44,6 @@ export default function NewItemPage() {
     setUploading(true);
     setError("");
     try {
-      const urls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const fd = new FormData();
         fd.append("file", files[i]);
@@ -34,16 +53,13 @@ export default function NewItemPage() {
           method: "POST",
           body: fd,
         });
-        urls.push(data.url);
+        setUploaded((u) => [...u, data.url]);
         if (data.duplicateWarning) {
-          setError(
-            "Похожие фото уже есть у других пользователей — объявление может уйти на модерацию.",
-          );
+          setError(t("newItem.duplicatePhotos"));
         }
       }
-      setUploaded((u) => [...u, ...urls]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка загрузки");
+      setError(e instanceof Error ? e.message : t("newItem.uploadError"));
     } finally {
       setUploading(false);
     }
@@ -55,17 +71,31 @@ export default function NewItemPage() {
     setBusy(true);
     setError("");
     const fd = new FormData(e.currentTarget);
-    const photosRaw = String(fd.get("photos") || "");
-    const photosFromText = photosRaw
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const photos = [...uploaded, ...photosFromText];
+    const photos = uploaded;
 
-    const wantCategories = String(fd.get("wantCategories") || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const list = (key: string) =>
+        String(fd.get(key) || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+    const wantCategories = wantCats;
+    const num = (key: string) => {
+      const v = String(fd.get(key) || "").trim();
+      return v === "" ? undefined : Number(v);
+    };
+    const ageFrom = num("ageFrom");
+    const ageTo = num("ageTo");
+    if (ageFrom != null && ageTo != null && ageFrom > ageTo) {
+      setError(t("newItem.ageOrder"));
+      setBusy(false);
+      return;
+    }
+
+    if (photos.length < 2) {
+      setError(t("newItem.minPhotos"));
+      setBusy(false);
+      return;
+    }
 
     try {
       const data = await api<{ item: { id: string } }>("/api/items", {
@@ -77,6 +107,12 @@ export default function NewItemPage() {
           subcategory: fd.get("subcategory") || undefined,
           brand: fd.get("brand") || undefined,
           model: fd.get("model") || undefined,
+          ageFrom,
+          ageTo,
+          size: fd.get("size") || undefined,
+          color: fd.get("color") || undefined,
+          serialNumber: fd.get("serialNumber") || undefined,
+          tags: list("tags"),
           condition: fd.get("condition"),
           completeness: fd.get("completeness") || undefined,
           hasDamage: fd.get("hasDamage") === "on",
@@ -88,208 +124,369 @@ export default function NewItemPage() {
           wantType: fd.get("wantType") || "ANY",
           wantText: fd.get("wantText") || undefined,
           wantCategories,
+          wantBrands: list("wantBrands"),
           defectsConfirmed: true,
-          photos:
-            photos.length >= 2
-              ? photos
-              : [
-                  `https://placehold.co/600x800/8B7CFF/F7F3EA?text=${encodeURIComponent(String(fd.get("title")))}+1`,
-                  `https://placehold.co/600x800/D6F15C/17151F?text=${encodeURIComponent(String(fd.get("title")))}+2`,
-                ],
+          photos,
+          videoUrl: videoUrl || undefined,
         }),
       });
       navigate(`/items/${data.item.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка");
+      setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 animate-rise sm:space-y-6">
-      <div>
-        <h1 className="font-display text-2xl text-forest sm:text-3xl">Добавить предмет</h1>
-        <p className="mt-1 text-sm text-ink/60">
-          Укажите все существенные дефекты. Деньги, цены и доплаты запрещены.
-        </p>
-      </div>
-
-      {error && (
-        <p className="rounded-xl bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p>
-      )}
-
-      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl bg-white/75 p-4 ring-1 ring-forest/10 sm:rounded-3xl sm:p-6">
-        <Field label="Название" name="title" required />
-        <label className="block space-y-1 text-sm">
-          <span>Описание</span>
-          <textarea
-            name="description"
-            required
-            minLength={10}
-            rows={4}
-            className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-          />
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1 text-sm">
-            <span>Категория</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-            >
-              {Object.keys(CATEGORIES).map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block space-y-1 text-sm">
-            <span>Подкатегория</span>
-            <select
-              name="subcategory"
-              className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-            >
-              {subcats.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </label>
+      <div className="mx-auto max-w-2xl space-y-4 animate-rise sm:space-y-6">
+        <div>
+          <h1 className="font-display text-2xl text-forest sm:text-3xl">{t("newItem.title")}</h1>
+          <p className="mt-1 text-sm text-ink/60">
+            {t("newItem.subtitle")}
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Бренд" name="brand" />
-          <Field label="Модель" name="model" />
-        </div>
+        {error && (
+            <p className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral ring-1 ring-coral/20">
+              {error}
+            </p>
+        )}
 
-        <label className="block space-y-1 text-sm">
-          <span>Состояние</span>
-          <select
-            name="condition"
-            required
-            className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-          >
-            {CONDITIONS.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-
-        <Field label="Комплектация" name="completeness" />
-
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="hasDamage" />
-          Есть повреждения
-        </label>
-        <Field label="Описание повреждений" name="damageNotes" />
-        <Field label="Отсутствующие элементы" name="missingParts" />
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Город" name="city" defaultValue={user?.city} required />
-          <Field label="Район" name="district" />
-        </div>
-
-        <label className="block space-y-1 text-sm">
-          <span>Тип «хочу получить»</span>
-          <select
-            name="wantType"
-            className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-          >
-            <option value="ANY">Рассмотрю любые</option>
-            <option value="CATEGORY">Категории</option>
-            <option value="BRAND">Бренд</option>
-            <option value="SPECIFIC">Конкретная игрушка</option>
-          </select>
-        </label>
-        <Field
-          label="Хочу получить (текст)"
-          name="wantText"
-          placeholder="LEGO City / машинки / конструкторы"
-        />
-        <Field
-          label="Категории желаемого (через запятую)"
-          name="wantCategories"
-          placeholder="Конструкторы, Машинки"
-        />
-
-        <label className="block space-y-2 text-sm">
-          <span>Фото (загрузка с watermark платформы)</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={(e) => onUpload(e.target.files)}
-            className="block w-full text-sm"
-          />
-          {uploading && <p className="text-xs text-ink/50">Загрузка…</p>}
-          {uploaded.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {uploaded.map((u) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={u}
-                  src={mediaUrl(u)}
-                  alt=""
-                  className="h-16 w-16 rounded-lg object-cover ring-1 ring-forest/10"
-                />
-              ))}
-            </div>
-          )}
-          <span className="text-xs text-ink/45">
-            Или вставьте URL (по одному в строке). Минимум 2 фото — иначе демо-плейсхолдеры.
-          </span>
-          <textarea
-            name="photos"
-            rows={2}
-            className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2 font-mono text-xs"
-            placeholder="https://..."
-          />
-        </label>
-
-        <label className="flex items-start gap-2 rounded-xl bg-mist/50 p-3 text-sm">
-          <input type="checkbox" name="defectsConfirmed" required className="mt-1" />
-          <span>
-            Я указал все известные мне существенные дефекты и несоответствия
-            предмета описанию.
-          </span>
-        </label>
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="min-h-12 w-full rounded-xl bg-coral py-3 font-semibold text-white disabled:opacity-60"
+        <form
+            onSubmit={onSubmit}
+            className="space-y-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-forest/10 sm:p-8"
         >
-          {busy ? "Публикация…" : "Опубликовать"}
-        </button>
-      </form>
-    </div>
+          {/* Основная информация */}
+          <div className="space-y-4">
+            <SectionTitle>{t("newItem.sectionMain")}</SectionTitle>
+            <Field label={t("newItem.name")} name="title" required />
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.description")}</span>
+              <textarea
+                  name="description"
+                  required
+                  minLength={10}
+                  rows={4}
+                  className="w-full rounded-2xl border border-forest/15 bg-cream/40 px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
+              />
+            </label>
+          </div>
+
+          {/* Категория */}
+          <div className="space-y-4">
+            <SectionTitle>{t("newItem.sectionCategory")}</SectionTitle>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium text-ink/80">{t("newItem.category")}</span>
+                <FancySelect
+                    value={category}
+                    onChange={(v) => {
+                      setCategory(v);
+                      setSubcategory(CATEGORIES[v]?.[0] ?? "");
+                    }}
+                    options={Object.keys(CATEGORIES).map((c) => ({ value: c, label: labels.category(c) }))}
+                    triggerClassName={FIELD_TRIGGER}
+                />
+              </label>
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium text-ink/80">{t("newItem.subcategory")}</span>
+                <FancySelect
+                    name="subcategory"
+                    value={subcategory}
+                    onChange={setSubcategory}
+                    options={subcats.map((sc) => ({ value: sc, label: labels.subcategory(sc) }))}
+                    triggerClassName={FIELD_TRIGGER}
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t("newItem.brand")} name="brand" />
+              <Field label={t("newItem.model")} name="model" />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t("newItem.ageFrom")} name="ageFrom" type="number" min={0} max={18} />
+              <Field label={t("newItem.ageTo")} name="ageTo" type="number" min={0} max={18} />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t("newItem.size")} name="size" placeholder={t("newItem.sizePlaceholder")} />
+              <Field label={t("newItem.color")} name="color" />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1.5 text-sm">
+                <span className="font-medium text-ink/80">{t("newItem.original")}</span>
+                <FancySelect
+                    name="isOriginal"
+                    value={isOriginal}
+                    onChange={setIsOriginal}
+                    options={[
+                      { value: "on", label: t("newItem.originalYes") },
+                      { value: "off", label: t("newItem.originalNo") },
+                    ]}
+                    triggerClassName={FIELD_TRIGGER}
+                />
+              </label>
+              <Field label={t("newItem.serial")} name="serialNumber" />
+            </div>
+
+            <Field label={t("newItem.tags")} name="tags" placeholder={t("newItem.tagsPlaceholder")} />
+          </div>
+
+          {/* Состояние */}
+          <div className="space-y-4">
+            <SectionTitle>{t("newItem.sectionCondition")}</SectionTitle>
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.condition")}</span>
+              <FancySelect
+                  name="condition"
+                  value={condition}
+                  onChange={setCondition}
+                  options={CONDITIONS.map((c) => ({ value: c, label: labels.condition(c) }))}
+                  triggerClassName={FIELD_TRIGGER}
+              />
+            </label>
+
+            <Field label={t("newItem.completeness")} name="completeness" />
+
+            <label className="flex items-center gap-2.5 rounded-2xl bg-cream/50 px-4 py-3 text-sm font-medium text-ink/80">
+              <input
+                  type="checkbox"
+                  name="hasDamage"
+                  className="h-4 w-4 rounded border-forest/30 text-coral focus:ring-coral/30"
+              />
+              {t("newItem.hasDamage")}
+            </label>
+            <Field label={t("newItem.damageNotes")} name="damageNotes" />
+            <Field label={t("newItem.missingParts")} name="missingParts" />
+          </div>
+
+          {/* Локация */}
+          <div className="space-y-4">
+            <SectionTitle>{t("newItem.sectionLocation")}</SectionTitle>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t("newItem.city")} name="city" defaultValue={user?.city} required />
+              <Field label={t("newItem.district")} name="district" />
+            </div>
+          </div>
+
+          {/* Хочу получить */}
+          <div className="space-y-4">
+            <SectionTitle>{t("newItem.sectionWant")}</SectionTitle>
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.wantType")}</span>
+              <FancySelect
+                  name="wantType"
+                  value={wantType}
+                  onChange={setWantType}
+                  options={[
+                    { value: "ANY", label: t("newItem.wantAny") },
+                    { value: "CATEGORY", label: t("newItem.wantCategory") },
+                    { value: "BRAND", label: t("newItem.wantBrand") },
+                    { value: "SPECIFIC", label: t("newItem.wantSpecific") },
+                  ]}
+                  triggerClassName={FIELD_TRIGGER}
+              />
+            </label>
+            <Field
+                label={t("newItem.wantText")}
+                name="wantText"
+                placeholder={t("newItem.wantTextPlaceholder")}
+            />
+            {/* Chips instead of free text: the backend matches these values
+                against subcategories, so they must stay exact (Russian) */}
+            <div className="space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.wantCategories")}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {ALL_SUBCATEGORIES.map((sc) => {
+                  const on = wantCats.includes(sc);
+                  return (
+                      <button
+                          key={sc}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() =>
+                              setWantCats((prev) =>
+                                  on ? prev.filter((x) => x !== sc) : [...prev, sc],
+                              )
+                          }
+                          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                              on
+                                  ? "bg-forest text-white"
+                                  : "bg-cream/60 text-ink/70 ring-1 ring-forest/15 hover:bg-forest/10"
+                          }`}
+                      >
+                        {labels.subcategory(sc)}
+                      </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Field
+                label={t("newItem.wantBrands")}
+                name="wantBrands"
+                placeholder="LEGO, Hot Wheels"
+            />
+          </div>
+
+          {/* Фото */}
+          <div className="space-y-3">
+            <SectionTitle>{t("newItem.sectionPhotos")}</SectionTitle>
+            <label className="block space-y-3 text-sm">
+            <span className="font-medium text-ink/80">
+              {t("newItem.photosLabel")}
+            </span>
+
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-forest/20 bg-cream/40 px-4 py-6 text-center transition hover:border-forest/40 hover:bg-cream/60">
+              <span className="text-sm font-semibold text-forest">
+                {uploading ? t("newItem.uploading") : t("newItem.pickPhotos")}
+              </span>
+                <span className="text-xs text-ink/45">{t("newItem.photoFormats")}</span>
+                <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => onUpload(e.target.files)}
+                    className="hidden"
+                />
+              </label>
+
+              {uploaded.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {uploaded.map((u) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            key={u}
+                            src={mediaUrl(u)}
+                            alt=""
+                            className="h-16 w-16 rounded-xl object-cover ring-1 ring-forest/15"
+                        />
+                    ))}
+                  </div>
+              )}
+
+              <span className="block text-xs text-ink/45">
+              {t("newItem.photoHint")}
+            </span>
+            </label>
+
+            <div className="space-y-2 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.video")}</span>
+              <p className="text-xs text-ink/45">
+                {t("newItem.videoHint", { mb: MAX_VIDEO_MB })}
+              </p>
+              {videoUrl ? (
+                  <div className="space-y-2">
+                    <video
+                        src={mediaUrl(videoUrl)}
+                        controls
+                        preload="metadata"
+                        className="max-h-56 w-full rounded-2xl bg-black"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => setVideoUrl("")}
+                        className="text-xs font-bold text-coral hover:underline"
+                    >
+                      {t("newItem.deleteVideo")}
+                    </button>
+                  </div>
+              ) : (
+                  <label className="flex cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-forest/20 bg-cream/40 px-4 py-4 text-sm font-semibold text-forest transition hover:border-forest/40">
+                    {videoUploading ? t("newItem.uploadingVideo") : t("newItem.pickVideo")}
+                    <input
+                        type="file"
+                        accept={VIDEO_ACCEPT}
+                        disabled={videoUploading}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setVideoUploading(true);
+                          setError("");
+                          try {
+                            setVideoUrl(await uploadMedia(file));
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : t("newItem.videoError"));
+                          } finally {
+                            setVideoUploading(false);
+                            e.target.value = "";
+                          }
+                        }}
+                    />
+                  </label>
+              )}
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3 rounded-2xl bg-mist/50 p-4 text-sm">
+            <input
+                type="checkbox"
+                name="defectsConfirmed"
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-forest/30 text-forest focus:ring-forest/30"
+            />
+            <span className="text-ink/75">
+            {t("newItem.defectsConfirm")}
+          </span>
+          </label>
+
+          <button
+              type="submit"
+              disabled={busy}
+              className="min-h-12 w-full rounded-2xl bg-coral py-3 font-semibold text-white shadow-sm transition hover:bg-coral/90 disabled:opacity-60"
+          >
+            {busy ? t("newItem.publishing") : t("newItem.publish")}
+          </button>
+        </form>
+      </div>
   );
 }
 
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+      <h2 className="text-xs font-bold uppercase tracking-wide text-forest/60">
+        {children}
+      </h2>
+  );
+}
+
+
 function Field({
-  label,
-  name,
-  required,
-  defaultValue,
-  placeholder,
-}: {
+                 label,
+                 name,
+                 required,
+                 defaultValue,
+                 placeholder,
+                 type = "text",
+                 min,
+                 max,
+               }: {
   label: string;
   name: string;
   required?: boolean;
   defaultValue?: string;
   placeholder?: string;
+  type?: string;
+  min?: number;
+  max?: number;
 }) {
   return (
-    <label className="block space-y-1 text-sm">
-      <span>{label}</span>
-      <input
-        name={name}
-        required={required}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-forest/15 bg-white px-3 py-2"
-      />
-    </label>
+      <label className="block space-y-1.5 text-sm">
+        <span className="font-medium text-ink/80">{label}</span>
+        <input
+            name={name}
+            type={type}
+            min={min}
+            max={max}
+            required={required}
+            defaultValue={defaultValue}
+            placeholder={placeholder}
+            className="w-full rounded-2xl border border-forest/15 bg-cream/40 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink/35 focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
+        />
+      </label>
   );
 }

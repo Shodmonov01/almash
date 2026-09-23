@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { itemSnapshot, notify, writeAudit } from "@/lib/utils";
 import { SAFE_MEETING_PLACES } from "@/lib/constants";
+import { refreshUserRisk } from "@/lib/services/risk";
 import {
   assertPartyAccess,
   cancelTrade,
@@ -180,6 +181,16 @@ export async function POST(req: AppRequest, ctx: Ctx) {
             tradeId: trade.id,
             action: "TERMS_LOCKED",
           });
+          // TZ §50 «сделка подтверждена»
+          for (const uid of [trade.initiatorId, trade.recipientId]) {
+            await notify({
+              userId: uid,
+              tradeId: trade.id,
+              type: "TERMS_AGREED",
+              title: "Сделка подтверждена",
+              body: `${trade.publicId}: условия зафиксированы обеими сторонами. Договоритесь о встрече.`,
+            });
+          }
         }
         break;
       }
@@ -257,8 +268,11 @@ export async function POST(req: AppRequest, ctx: Ctx) {
       }
 
       case "cancel": {
-        if (["COMPLETED", "CANCELLED", "BLOCKED"].includes(trade.status)) {
+        if (["COMPLETED", "CANCELLED", "BLOCKED", "EXPIRED"].includes(trade.status)) {
           return jsonError("Нельзя отменить", 400);
+        }
+        if (trade.status === "DISPUTED" && user.role !== "ADMIN") {
+          return jsonError("Идёт спор — решение принимает администратор", 400);
         }
         if (
           (trade.partyAConfirmedAt || trade.partyBConfirmedAt) &&
@@ -278,6 +292,12 @@ export async function POST(req: AppRequest, ctx: Ctx) {
         if (!["MEETING_SCHEDULED", "HANDOFF_PENDING"].includes(trade.status)) {
           return jsonError("Неявка доступна только после назначения встречи", 400);
         }
+        if (myParty!.noShowReported) {
+          return jsonError("Вы уже сообщили о неявке по этой сделке", 400);
+        }
+        if (trade.meetingAt && trade.meetingAt.getTime() > Date.now()) {
+          return jsonError("Встреча ещё не наступила", 400);
+        }
         await prisma.tradeParty.update({
           where: { id: myParty!.id },
           data: { noShowReported: true },
@@ -286,8 +306,10 @@ export async function POST(req: AppRequest, ctx: Ctx) {
         if (other) {
           await prisma.user.update({
             where: { id: other.userId },
-            data: { noShowCount: { increment: 1 }, riskScoreCached: { increment: 5 } },
+            data: { noShowCount: { increment: 1 } },
           });
+          // TZ §41: several no-shows lower trust (noShows risk signal)
+          await refreshUserRisk(other.userId);
         }
         await writeAudit({
           userId: user.id,

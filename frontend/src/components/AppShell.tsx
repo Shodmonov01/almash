@@ -3,32 +3,37 @@ import {
   Heart,
   Home,
   Layers,
+  MessageCircle,
   Plus,
   RefreshCw,
+  Search,
   Shield,
-  User as UserIcon,
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "./AuthProvider";
 import { mediaUrl } from "@/lib/env";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import header_logo from "../assets/header.svg"
+
 
 const desktopLinks = [
-  { href: "/", label: "Свайп", icon: Heart },
-  { href: "/browse", label: "Каталог", icon: Layers },
-  { href: "/items/new", label: "Добавить", icon: Plus },
-  { href: "/trades", label: "Обмены", icon: RefreshCw },
-  { href: "/matches", label: "Матчи", icon: Home },
-  { href: "/notifications", label: "Алерты", icon: Bell },
-  { href: "/profile", label: "Профиль", icon: UserIcon },
+  { href: "/", label: "nav.findTrade", icon: Search },
+  { href: "/browse", label: "nav.catalog", icon: Layers },
+  { href: "/items/new", label: "nav.add", icon: Plus },
+  { href: "/trades", label: "nav.trades", icon: RefreshCw },
+  { href: "/favorites", label: "nav.favorites", icon: Heart },
+  { href: "/messages", label: "nav.messages", icon: MessageCircle },
+  { href: "/matches", label: "nav.matches", icon: Home },
 ];
 
+
 const mobileTabs = [
-  { href: "/", label: "Свайп", icon: Heart },
-  { href: "/trades", label: "Обмены", icon: RefreshCw },
-  { href: "/items/new", label: "Добавить", icon: Plus, emphasize: true },
-  { href: "/browse", label: "Каталог", icon: Layers },
-  { href: "/profile", label: "Профиль", icon: UserIcon },
+  { href: "/", label: "nav.find", icon: Search },
+  { href: "/trades", label: "nav.trades", icon: RefreshCw },
+  { href: "/items/new", label: "nav.add", icon: Plus, emphasize: true },
+  { href: "/messages", label: "nav.chats", icon: MessageCircle },
+  { href: "/browse", label: "nav.catalog", icon: Layers },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -39,69 +44,91 @@ function isActive(pathname: string, href: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const swipeHome = pathname === "/";
 
   return (
     <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
       <header className="sticky top-0 z-40 bg-cream/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-4">
-          <Link to="/" className="flex min-w-0 items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-2xl bg-forest text-sm font-black text-white shadow-[0_6px_0_#1B1828]">
-              ⇄
-            </span>
-            <span className="font-display text-xl text-ink sm:text-2xl">
-              SwapToy
-            </span>
+          <Link to="/" className="flex shrink-0 items-center gap-2">
+            {/*<span className="grid h-8 w-8 place-items-center rounded-2xl bg-forest text-sm font-black text-white shadow-[0_6px_0_#1B1828]">*/}
+            {/*  ⇄*/}
+            {/*</span>*/}
+            {/*<span className="font-display text-xl text-ink sm:text-2xl">*/}
+            {/*  SwapToy*/}
+            {/*</span>*/}
+            {/* square SVG: fits the 56px (phone) / 64px (sm+) header without distortion */}
+            <img
+              src={header_logo}
+              alt="RETOY"
+              className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+            />
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto scrollbar-none lg:flex">
             {desktopLinks.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 to={href}
+                title={t(label)}
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold transition",
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-[13px] font-bold transition",
                   isActive(pathname, href)
                     ? "bg-ink text-cream"
                     : "text-ink/60 hover:bg-white hover:text-ink",
                 )}
               >
                 <Icon size={16} />
-                {label}
+                <span className="hidden xl:inline">{t(label)}</span>
               </Link>
             ))}
             {user?.role === "ADMIN" && (
               <Link
                 to="/admin"
                 className={clsx(
-                  "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold transition",
+                  "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-2 text-[13px] font-bold transition",
                   pathname.startsWith("/admin")
                     ? "bg-coral text-white"
                     : "text-ink/60 hover:bg-coral/10",
                 )}
               >
                 <Shield size={16} />
-                Админ
+                <span className="hidden xl:inline">{t("nav.admin")}</span>
               </Link>
             )}
           </nav>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Link
-              to="/notifications"
+              to="/favorites"
               className={clsx(
                 "inline-flex h-10 w-10 items-center justify-center rounded-full transition lg:hidden",
+                isActive(pathname, "/favorites")
+                  ? "bg-ink text-cream"
+                  : "bg-white text-ink shadow-sm",
+              )}
+              aria-label={t("nav.favorites")}
+            >
+              <Heart size={18} />
+            </Link>
+            <Link
+              to="/notifications"
+              className={clsx(
+                "inline-flex h-10 w-10 items-center justify-center rounded-full transition",
                 isActive(pathname, "/notifications")
                   ? "bg-ink text-cream"
                   : "bg-white text-ink shadow-sm",
               )}
-              aria-label="Уведомления"
+              aria-label={t("nav.notifications")}
             >
               <Bell size={18} />
             </Link>
             {user ? (
               <Link
                 to="/profile"
+                title={t("nav.profile")}
+                aria-label={t("nav.profile")}
                 className="flex max-w-[40vw] items-center gap-2 rounded-full bg-white py-1 pl-1 pr-2.5 text-sm font-bold shadow-sm sm:pr-3"
               >
                 <img
@@ -109,14 +136,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   alt=""
                   className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-sand"
                 />
-                <span className="hidden truncate sm:inline">{user.name}</span>
+                <span className="hidden truncate sm:inline lg:hidden">{user.name}</span>
               </Link>
             ) : (
               <Link
                 to="/login"
                 className="inline-flex h-10 items-center rounded-full bg-ink px-4 text-sm font-bold text-cream"
               >
-                Войти
+                {t("nav.login")}
               </Link>
             )}
           </div>
@@ -134,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav
         className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
-        aria-label="Мобильная навигация"
+        aria-label={t("nav.mobileNav")}
       >
         <div className="mx-auto grid max-w-md grid-cols-5 rounded-[1.7rem] bg-ink p-1.5 text-cream shadow-[0_12px_40px_rgba(23,21,31,0.28)]">
           {mobileTabs.map(({ href, label, icon: Icon, emphasize }) => {
@@ -160,7 +187,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon size={emphasize ? 22 : 20} strokeWidth={active ? 2.6 : 2} />
                 </span>
-                <span className={clsx(emphasize && "text-sand")}>{label}</span>
+                <span className={clsx(emphasize && "text-sand")}>{t(label)}</span>
               </Link>
             );
           })}

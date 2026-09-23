@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
+import { useTranslation } from "react-i18next";
+import { dateLocale, useLabels } from "@/lib/labels";
 
 type Version = {
   version: number;
@@ -23,6 +25,8 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const { t } = useTranslation();
+  const labels = useLabels();
 
   useEffect(() => {
     if (!open) return;
@@ -35,9 +39,9 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
     <section className="rounded-3xl bg-white/70 p-5 ring-1 ring-forest/10">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl text-forest">Доказательства / версии</h2>
+          <h2 className="font-display text-xl text-forest">{t("snapshots.title")}</h2>
           <p className="text-sm text-ink/55">
-            Снимки состава и состояния предметов на момент каждой версии сделки.
+            {t("snapshots.hint")}
           </p>
         </div>
         <button
@@ -45,7 +49,7 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
           onClick={() => setOpen((v) => !v)}
           className="rounded-xl bg-mist px-3 py-2 text-sm"
         >
-          {open ? "Скрыть" : "Показать"}
+          {open ? t("snapshots.hide") : t("snapshots.show")}
         </button>
       </div>
 
@@ -58,10 +62,10 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
               className="rounded-2xl border border-forest/10 bg-cream/50 p-4"
             >
               <p className="text-sm font-medium">
-                Версия {v.version}
+                {t("snapshots.version", { n: v.version })}
                 {v.note ? ` · ${v.note}` : ""} ·{" "}
                 <span className="text-ink/50">
-                  {new Date(v.createdAt).toLocaleString("ru-RU")}
+                  {new Date(v.createdAt).toLocaleString(dateLocale())}
                 </span>
               </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -71,7 +75,7 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
                       {it.side}: {it.snapshot?.title || it.title}
                     </p>
                     {it.snapshot?.condition && (
-                      <p className="text-ink/60">{it.snapshot.condition}</p>
+                      <p className="text-ink/60">{labels.condition(it.snapshot.condition)}</p>
                     )}
                     {it.snapshot?.media?.[0]?.url && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -83,7 +87,7 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
                     )}
                     {it.snapshot?.frozenAt && (
                       <p className="mt-1 text-[10px] text-ink/40">
-                        freeze {new Date(it.snapshot.frozenAt).toLocaleString("ru-RU")}
+                        {t("snapshots.frozen")} {new Date(it.snapshot.frozenAt).toLocaleString(dateLocale())}
                       </p>
                     )}
                   </div>
@@ -92,7 +96,7 @@ export function SnapshotTimeline({ tradeId }: { tradeId: string }) {
             </div>
           ))}
           {versions.length === 0 && !error && (
-            <p className="text-sm text-ink/50">Загрузка…</p>
+            <p className="text-sm text-ink/50">{t("pages.loading")}</p>
           )}
         </div>
       )}

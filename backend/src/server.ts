@@ -10,6 +10,8 @@ import { fileURLToPath } from "node:url";
 import { runHttp } from "./lib/context";
 import { toAppRequest, type AppRequest } from "./lib/http";
 import type { ApiResult } from "./lib/api";
+import { runMaintenanceJobs } from "./lib/jobs/maintenance";
+import { processTelegramOutbox } from "./lib/services/telegram-notify";
 
 import * as auth from "./api/auth/route";
 import * as register from "./api/auth/register/route";
@@ -35,6 +37,9 @@ import * as reports from "./api/reports/route";
 import * as admin from "./api/admin/route";
 import * as jobs from "./api/jobs/route";
 import * as users from "./api/users/[id]/route";
+import * as sets from "./api/sets/route";
+import * as uploadAudio from "./api/upload-audio/route";
+import * as uploadVideo from "./api/upload-video/route";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3001);
@@ -63,7 +68,21 @@ function wrap(fn: (...args: any[]) => Promise<unknown>) {
   };
 }
 
+function assertProductionConfig() {
+  if (process.env.NODE_ENV !== "production") return;
+  const problems: string[] = [];
+  const jwt = process.env.JWT_SECRET || "";
+  if (jwt.length < 32 || jwt === "change-me") problems.push("JWT_SECRET (32+ символов)");
+  if (!process.env.TELEGRAM_BOT_TOKEN) {
+    console.warn("TELEGRAM_BOT_TOKEN is not set — Telegram login is disabled");
+  }
+  if (problems.length) {
+    throw new Error(`Production config missing: ${problems.join(", ")}`);
+  }
+}
+
 async function main() {
+  assertProductionConfig();
   const app = Fastify({ logger: true });
 
   await app.register(cors, {
@@ -73,7 +92,8 @@ async function main() {
   await app.register(cookie);
   await app.register(multipart, {
     attachFieldsToBody: true,
-    limits: { fileSize: 8 * 1024 * 1024 },
+    // Per-route checks keep images/audio at 8 MB; videos may be up to 50 MB.
+    limits: { fileSize: uploadVideo.MAX_VIDEO_BYTES },
   });
   const uploadsDir = path.join(__dirname, "../uploads");
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -131,6 +151,11 @@ async function main() {
   app.get("/api/jobs", wrap(jobs.GET));
   app.post("/api/jobs", wrap(jobs.POST));
   app.get("/api/users/:id", wrap(users.GET));
+  app.get("/api/sets", wrap(sets.GET));
+  app.post("/api/sets", wrap(sets.POST));
+  app.delete("/api/sets", wrap(sets.DELETE));
+  app.post("/api/upload-audio", wrap(uploadAudio.POST));
+  app.post("/api/upload-video", wrap(uploadVideo.POST));
 
   if (serveFrontend) {
     await app.register(fastifyStatic, {
@@ -149,6 +174,45 @@ async function main() {
   }
 
   await app.listen({ port: PORT, host: HOST });
+
+  // TZ §40: offer expiry (48h), 7-day scheduling timeout, 24h/2h reminders.
+  const jobsEveryMs = Number(process.env.JOBS_INTERVAL_MS || 5 * 60 * 1000);
+  if (jobsEveryMs > 0) {
+    let running = false;
+    const tick = async () => {
+      if (running) return;
+      running = true;
+      try {
+        const result = await runMaintenanceJobs();
+        app.log.info({ result }, "maintenance jobs");
+      } catch (err) {
+        app.log.error(err, "maintenance jobs failed");
+      } finally {
+        running = false;
+      }
+    };
+    setInterval(tick, jobsEveryMs).unref();
+    void tick();
+  }
+
+  // TZ §50: Telegram outbox — delivers pending pushes and retries failed ones.
+  const tgEveryMs = Number(process.env.TELEGRAM_OUTBOX_INTERVAL_MS || 30_000);
+  if (process.env.TELEGRAM_BOT_TOKEN && tgEveryMs > 0) {
+    let tgRunning = false;
+    const tgTick = async () => {
+      if (tgRunning) return;
+      tgRunning = true;
+      try {
+        await processTelegramOutbox();
+      } catch (err) {
+        app.log.error(err, "telegram outbox failed");
+      } finally {
+        tgRunning = false;
+      }
+    };
+    setInterval(tgTick, tgEveryMs).unref();
+    void tgTick();
+  }
   if (serveFrontend) {
     app.log.info(`UI+API http://${HOST}:${PORT}`);
   }

@@ -68,12 +68,9 @@ export async function GET(_req: AppRequest, ctx: Ctx) {
         myParty?.side === "A" || user.role === "ADMIN" ? trade.confirmCodeA : null,
       confirmCodeB:
         myParty?.side === "B" || user.role === "ADMIN" ? trade.confirmCodeB : null,
-      qrToken:
-        ["MEETING_SCHEDULED", "HANDOFF_PENDING", "PARTY_A_CONFIRMED", "PARTY_B_CONFIRMED"].includes(
-          trade.status,
-        ) || user.role === "ADMIN"
-          ? trade.qrToken
-          : null,
+      // QR is built client-side from the party's own code; the legacy shared
+      // token would let either side confirm without the other present.
+      qrToken: null,
       mySide: myParty?.side ?? null,
     };
 

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
-import { scanContent, computeRiskScore } from "@/lib/antifraud";
+import { computeRiskScore, MONEY_REASONS, scanContent } from "@/lib/antifraud";
+import { refreshUserRisk } from "@/lib/services/risk";
 import { notify, writeAudit } from "@/lib/utils";
 import {
   assertRateLimit,
@@ -55,7 +56,11 @@ export async function GET(_req: AppRequest, ctx: Ctx) {
 
 const schema = z.object({
   body: z.string().min(1).max(4000),
-  mediaUrl: z.string().optional(),
+  // Only files uploaded to this server — external links could bypass the filter
+  mediaUrl: z
+    .string()
+    .regex(/^\/uploads\/[\w.-]+$/, "Недопустимое вложение")
+    .optional(),
 });
 
 export async function POST(req: AppRequest, ctx: Ctx) {
@@ -85,12 +90,12 @@ export async function POST(req: AppRequest, ctx: Ctx) {
 
     const flag = scanContent(data.body, { allowContacts });
     if (flag.blocked) {
+      const isMoney = flag.reasons.some((r) => MONEY_REASONS.has(r));
       const dbUser = await prisma.user.update({
         where: { id: user.id },
         data: {
           moneyViolations: { increment: 1 },
           warningCount: { increment: 1 },
-          riskScoreCached: { increment: 10 },
         },
       });
 
@@ -100,8 +105,8 @@ export async function POST(req: AppRequest, ctx: Ctx) {
           tradeId: trade.id,
           type: "CHAT_VIOLATION",
           score: computeRiskScore({
-            moneyTalk: true,
-            isNewAccount: dbUser.completedTrades === 0,
+            moneyTalk: isMoney,
+            externalContact: !isMoney,
           }),
           detail: flag.reasons.join(", "),
         },
@@ -114,7 +119,12 @@ export async function POST(req: AppRequest, ctx: Ctx) {
         meta: { reasons: flag.reasons },
       });
 
-      if (dbUser.moneyViolations >= 3 || dbUser.riskScoreCached >= 70) {
+      const risk = await refreshUserRisk(user.id);
+      // TZ §26: repeated violations → account restriction
+      if (
+        dbUser.status !== "BLOCKED" &&
+        (dbUser.moneyViolations >= 3 || risk.highRisk)
+      ) {
         await prisma.user.update({
           where: { id: user.id },
           data: { status: "LIMITED" },
@@ -150,7 +160,9 @@ export async function POST(req: AppRequest, ctx: Ctx) {
       },
     });
 
-    if (trade.status === "OFFER_SENT") {
+    // Only the recipient replying starts negotiation; otherwise the initiator
+    // could keep an offer alive past its 48h expiry just by chatting.
+    if (trade.status === "OFFER_SENT" && user.id === trade.recipientId) {
       await prisma.trade.update({
         where: { id: trade.id },
         data: { status: "NEGOTIATION" },

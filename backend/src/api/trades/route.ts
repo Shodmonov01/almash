@@ -44,14 +44,37 @@ export async function GET(req: AppRequest) {
           },
         },
         _count: { select: { messages: true } },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            body: true,
+            createdAt: true,
+            system: true,
+            flagged: true,
+            senderId: true,
+            mediaUrl: true,
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
     });
 
-    const filtered = trades.map((t) => ({
-      ...t,
-      items: t.items.filter((i) => i.version === t.currentVersion),
-    }));
+    const filtered = trades.map(({ messages, ...t }) => {
+      const last = messages[0];
+      return {
+        ...t,
+        items: t.items.filter((i) => i.version === t.currentVersion),
+        lastMessage: last
+          ? {
+              ...last,
+              body: last.flagged
+                ? "[сообщение скрыто фильтром безопасности]"
+                : last.body,
+            }
+          : null,
+      };
+    });
 
     return jsonOk({ trades: filtered });
   } catch (e) {

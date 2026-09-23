@@ -7,29 +7,43 @@ type Pattern = {
   soft?: boolean;
 };
 
+// JS `\b` only understands ASCII word chars, so Cyrillic/Uzbek words use an
+// explicit "no letter before" look-behind instead.
+const L = "a-zа-яёўқғҳʻʼ'";
+const W = (body: string) => new RegExp(`(?<![${L}])(?:${body})`, "iu");
+const Q = "['ʻʼ‘]?"; // Uzbek o‘/g‘ apostrophe variants
+
 const MONEY_PATTERNS: Pattern[] = [
-  { reason: "сумма", re: /\d{2,3}([ \u00a0]?\d{3})*\s*(сум|руб(?:л(?:ей|я)?)?|usd|eur|\$|₽)/iu },
-  { reason: "валюта", re: /(доллар(?:ов|а)?|евро|рубл(?:ей|я|ь)?)/iu },
-  { reason: "карта", re: /\b\d{4}([\s-]?\d{4}){3}\b/ },
-  { reason: "доплата", re: /допла[тч][а-яё]*/iu },
+  {
+    reason: "сумма",
+    re: /\d{1,3}([  .,]?\d{3})*\s*(сум|сўм|so['ʻʼ‘]?m|руб|usd|eur|\$|₽|тыс|минг|ming)/iu,
+  },
+  { reason: "валюта", re: W("доллар|евро|рубл|dollar|yevro") },
+  { reason: "карта", re: /(?<!\d)\d{4}([\s-]?\d{4}){3}(?!\d)/ },
+  { reason: "доплата", re: W(`допла[тч]|qo${Q}shimcha\\s+pul|ustiga\\s+pul`) },
   {
     reason: "перевод денег",
-    re: /(перевед[иьу]|скинь\s+деньг|отправь\s+деньг|кинь\s+деньг)[а-яё]*/iu,
+    re: W(
+      `перевед[иьу]|перекин|скинь\\s+деньг|отправь\\s+деньг|кинь\\s+деньг|pul\\s+(?:o${Q}tkaz|tashla|yubor)|o${Q}tkazib\\s+ber`,
+    ),
   },
   {
     reason: "продажа",
-    re: /\b(продам|куплю|продаю|покупаю|цена|стоимость)\b/iu,
+    re: W("прода[мюеё]|продаж|куплю|покупа|цен[аыуе]|стоимост|sotaman|sotib\\s+ol|sotuv|narx"),
   },
-  {
-    reason: "оплата",
-    re: /\b(оплат[аыуе]|заплат[иь]|плат[её]ж)[а-яё]*/iu,
-  },
+  { reason: "оплата", re: W(`оплат|заплат|плат[её]ж|to${Q}lov|to${Q}la`) },
+  { reason: "деньги", re: W("деньг|денеж|pul(?![a-z])") },
   {
     reason: "платёжная система",
-    re: /\b(click\.uz|payme|uzum|paypal|qiwi|crypto|bitcoin|usdt|trc20)\b/iu,
+    re: /(click\.uz|payme|uzum\s*bank|paypal|qiwi|crypto|bitcoin|usdt|trc20|humo|uzcard)/iu,
   },
-  { reason: "кошелёк", re: /(кошел[её]к|wallet)/iu },
+  {
+    reason: "кошелёк",
+    re: /(кошел[её]к|wallet|hamyon|(?<![a-z0-9])(?:T[1-9A-HJ-NP-Za-km-z]{33}|0x[a-fA-F0-9]{40}|bc1[a-z0-9]{25,39})(?![a-z0-9]))/iu,
+  },
 ];
+
+export const MONEY_REASONS = new Set(MONEY_PATTERNS.map((p) => p.reason));
 
 const CONTACT_PATTERNS: Pattern[] = [
   { reason: "телефон", re: /(\+?998[\s-]?)?\d{2}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}/ },
@@ -75,19 +89,7 @@ export function scanContent(
     return { blocked: false, reasons: [], message: "", severity: "none" };
   }
 
-  const moneyHit = unique.some((r) =>
-    [
-      "сумма",
-      "валюта",
-      "карта",
-      "доплата",
-      "перевод денег",
-      "продажа",
-      "оплата",
-      "платёжная система",
-      "кошелёк",
-    ].includes(r),
-  );
+  const moneyHit = unique.some((r) => MONEY_REASONS.has(r));
 
   return {
     blocked: hard,
@@ -99,7 +101,8 @@ export function scanContent(
   };
 }
 
-export function computeRiskScore(signals: {
+/** TZ §33 risk signals. */
+export type RiskSignals = {
   isNewAccount?: boolean;
   manyListings?: boolean;
   moneyTalk?: boolean;
@@ -107,8 +110,14 @@ export function computeRiskScore(signals: {
   manyCancels?: boolean;
   manyDisputes?: boolean;
   duplicatePhotos?: boolean;
+  duplicateDescriptions?: boolean;
   sharedDevice?: boolean;
-}): number {
+  manyReports?: boolean;
+  noShows?: boolean;
+  burstActivity?: boolean;
+};
+
+export function computeRiskScore(signals: RiskSignals): number {
   let score = 0;
   if (signals.isNewAccount) score += 15;
   if (signals.manyListings) score += 10;
@@ -117,7 +126,11 @@ export function computeRiskScore(signals: {
   if (signals.manyCancels) score += 20;
   if (signals.manyDisputes) score += 25;
   if (signals.duplicatePhotos) score += 35;
+  if (signals.duplicateDescriptions) score += 30;
   if (signals.sharedDevice) score += 20;
+  if (signals.manyReports) score += 25;
+  if (signals.noShows) score += 15;
+  if (signals.burstActivity) score += 15;
   return Math.min(100, score);
 }
 

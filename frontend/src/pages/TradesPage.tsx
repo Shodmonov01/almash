@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
-import { TRADE_STATUS_LABELS } from "@/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useLabels } from "@/lib/labels";
 
 type TradeRow = {
   id: string;
@@ -20,6 +21,8 @@ type TradeRow = {
 export default function TradesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const labels = useLabels();
   const [trades, setTrades] = useState<TradeRow[]>([]);
 
   useEffect(() => {
@@ -27,7 +30,7 @@ export default function TradesPage() {
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return;  
     api<{ trades: TradeRow[] }>("/api/trades").then((d) => setTrades(d.trades));
   }, [user]);
 
@@ -35,23 +38,23 @@ export default function TradesPage() {
 
   return (
     <div className="space-y-6 animate-rise">
-      <h1 className="font-display text-3xl text-forest">Мои обмены</h1>
+      <h1 className="font-display text-3xl text-forest">{t("pages.trades.title")}</h1>
       {trades.length === 0 ? (
         <p className="rounded-2xl bg-white/60 p-8 text-center text-ink/60">
-          Пока нет сделок. Найдите игрушку и предложите обмен.
+          {t("pages.trades.empty")}
         </p>
       ) : (
         <div className="space-y-3">
-          {trades.map((t) => {
-            const other = t.parties.find((p) => p.user.id !== user.id)?.user;
+          {trades.map((tr) => {
+            const other = tr.parties.find((p) => p.user.id !== user.id)?.user;
             return (
               <Link
-                key={t.id}
-                to={`/trades/${t.id}`}
+                key={tr.id}
+                to={`/trades/${tr.id}`}
                 className="flex gap-3 rounded-2xl bg-white/80 p-3 ring-1 ring-forest/10 transition active:scale-[0.99] hover:ring-forest/30 sm:gap-4 sm:p-4"
               >
                 <div className="flex shrink-0 -space-x-2">
-                  {t.items.slice(0, 3).map((ti, i) => (
+                  {tr.items.slice(0, 3).map((ti, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
@@ -62,13 +65,13 @@ export default function TradesPage() {
                   ))}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{t.publicId}</p>
+                  <p className="font-medium">{tr.publicId}</p>
                   <p className="text-sm text-ink/60">
-                    с {other?.name || "—"} ·{" "}
-                    {TRADE_STATUS_LABELS[t.status] || t.status}
+                    {t("pages.trades.with", { name: other?.name || "—" })} ·{" "}
+                    {labels.tradeStatus(tr.status)}
                   </p>
                   <p className="mt-1 line-clamp-2 text-xs text-ink/45">
-                    {t.items.map((i) => i.item.title).join(" ⇄ ")}
+                    {tr.items.map((i) => i.item.title).join(" ⇄ ")}
                   </p>
                 </div>
               </Link>

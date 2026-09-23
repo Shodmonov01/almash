@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { getSessionUser, requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { parseJsonArray, writeAudit } from "@/lib/utils";
+import { MONEY_REASONS, scanContent } from "@/lib/antifraud";
+import { CONDITIONS } from "@/lib/constants";
+import { findForbiddenCategory } from "@/lib/services/risk";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -75,7 +78,7 @@ const patchSchema = z.object({
   title: z.string().min(3).max(120).optional(),
   description: z.string().min(10).max(4000).optional(),
   wantText: z.string().optional(),
-  condition: z.string().optional(),
+  condition: z.enum(CONDITIONS as unknown as [string, ...string[]]).optional(),
 });
 
 export async function PATCH(req: AppRequest, ctx: Ctx) {
@@ -95,6 +98,39 @@ export async function PATCH(req: AppRequest, ctx: Ctx) {
     }
 
     const body = patchSchema.parse(await req.json());
+
+    // Same money/contact filter as on creation — otherwise a clean listing
+    // could be edited into "продам за 100 000 сум" afterwards.
+    const text = [body.title, body.description, body.wantText]
+      .filter(Boolean)
+      .join("\n");
+    const flag = scanContent(text);
+    if (flag.blocked) {
+      if (flag.reasons.some((r) => MONEY_REASONS.has(r))) {
+        await prisma.riskEvent.create({
+          data: {
+            userId: user.id,
+            type: "MONEY_IN_LISTING",
+            score: 40,
+            detail: `edit ${id}: ${flag.reasons.join(", ")}`,
+          },
+        });
+        await prisma.moderationQueue.create({
+          data: {
+            type: "MONEY_LISTING",
+            userId: user.id,
+            itemId: id,
+            detail: flag.reasons.join(", "),
+            score: 40,
+          },
+        });
+      }
+      return jsonError(flag.message, 400, { reasons: flag.reasons });
+    }
+    const forbiddenHit = await findForbiddenCategory(text);
+    if (forbiddenHit) {
+      return jsonError(`Категория запрещена: ${forbiddenHit}`, 400);
+    }
     const updated = await prisma.item.update({
       where: { id },
       data: body,

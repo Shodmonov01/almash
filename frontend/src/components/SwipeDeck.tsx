@@ -7,6 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { ToyMascot } from "@/components/ToyMascot";
 import { ConfettiBurst } from "@/components/ConfettiBurst";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useLabels } from "@/lib/labels";
 
 export type SwipeCard = {
   id: string;
@@ -56,6 +58,18 @@ export function SwipeDeck() {
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
   const [exit, setExit] = useState<"left" | "right" | null>(null);
   const [hint, setHint] = useState(false);
+  const { t } = useTranslation();
+  const labels = useLabels();
+  const [notice, setNotice] = useState<string | null>(null);
+  // bumps to replay the "add a toy first" banner animation on a blocked like
+  const [nudge, setNudge] = useState(0);
+  const noticeTimer = useRef<number | undefined>(undefined);
+  const showNotice = useCallback((text: string) => {
+    setNotice(text);
+    window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 4000);
+  }, []);
+  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
   const startRef = useRef<{ x: number; y: number } | null>(null);
   const dragRef = useRef({ x: 0, y: 0 });
   const velRef = useRef({ x: 0, t: 0 });
@@ -110,6 +124,7 @@ export function SwipeDeck() {
         setExit(null);
         setDrag({ x: 0, y: 0, active: false });
         dragRef.current = { x: 0, y: 0 };
+        setNudge((n) => n + 1);
         return;
       }
       setBusy(true);
@@ -135,14 +150,24 @@ export function SwipeDeck() {
           setBusy(false);
           if (result.match) setMatch(result.match);
         }, FLY_MS);
-      } catch {
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        const message = err instanceof Error ? err.message : "";
+        if (status === 404 || status === 400) {
+          // The card is stale (e.g. already in another trade) — without this
+          // it would snap back and block the deck forever.
+          setCards((prev) => prev.filter((c) => c.id !== card.id));
+          showNotice(message || t("swipe.unavailable"));
+        } else {
+          showNotice(message || t("common.error"));
+        }
         setExit(null);
         setDrag({ x: 0, y: 0, active: false });
         dragRef.current = { x: 0, y: 0 };
         setBusy(false);
       }
     },
-    [busy, myItemCount],
+    [busy, myItemCount, showNotice, t],
   );
 
   function onPointerDown(e: React.PointerEvent) {
@@ -189,7 +214,7 @@ export function SwipeDeck() {
         body: JSON.stringify({
           targetItemIds: [match.theirItemId],
           offeredItemIds: [match.myItemId],
-          message: "Матч из свайпа — давай обменяемся!",
+          message: t("matches.swipeMessage"),
         }),
       });
       setMatch(null);
@@ -203,7 +228,7 @@ export function SwipeDeck() {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-2 text-ink/50">
         <ToyMascot className="w-28 animate-softpulse" mood="idle" />
-        Загрузка…
+        {t("pages.loading")}
       </div>
     );
   }
@@ -217,10 +242,10 @@ export function SwipeDeck() {
       <header className="flex items-end justify-between gap-3 animate-rise">
         <div>
           <p className="font-display text-[2rem] leading-none text-ink sm:text-4xl">
-            обменяться?
+            {t("swipe.question")}
           </p>
           <p className="mt-1 text-sm font-semibold text-ink/50">
-            вправо — да · влево — нет
+            {t("swipe.howto")}
           </p>
         </div>
         <ToyMascot className="w-16 shrink-0 sm:w-20" mood={exit === "right" ? "yay" : "idle"} />
@@ -228,34 +253,52 @@ export function SwipeDeck() {
 
       <div className="flex gap-2">
         <span className="rounded-full bg-coral px-3 py-1 text-xs font-extrabold text-white">
-          ← пропуск
+          {t("swipe.skipHint")}
         </span>
         <span className="rounded-full bg-sand px-3 py-1 text-xs font-extrabold text-ink">
-          обмен →
+          {t("swipe.tradeHint")}
         </span>
       </div>
 
       {myItemCount === 0 && (
-        <div className="rounded-3xl bg-coral px-4 py-3 text-sm font-bold text-white shadow-[0_6px_0_#c44a3a]">
-          Сначала добавьте свою игрушку — иначе нечем меняться.{" "}
+        <div
+          key={nudge}
+          role="status"
+          aria-live="polite"
+          className={clsx(
+            "rounded-3xl bg-coral px-4 py-3 text-sm font-bold text-white shadow-[0_6px_0_#c44a3a]",
+            nudge > 0 && "animate-bouncein ring-4 ring-coral/30",
+          )}
+        >
+          {t("swipe.addFirst")}{" "}
           <Link to="/items/new" className="underline">
-            Добавить
+            {t("swipe.add")}
           </Link>
         </div>
+      )}
+
+      {notice && (
+        <p
+          role="status"
+          aria-live="polite"
+          className="animate-rise rounded-2xl bg-ink px-4 py-3 text-center text-sm font-bold text-cream shadow-[0_6px_0_rgba(23,21,31,0.25)]"
+        >
+          {notice}
+        </p>
       )}
 
       <div className="relative mx-auto aspect-[3/4] w-full max-h-[min(62vh,540px)]">
         {loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 rounded-[2rem] bg-white text-ink/45 shadow-[0_16px_40px_rgba(23,21,31,0.08)]">
             <ToyMascot className="w-24 animate-softpulse" />
-            Подбираем колоду…
+            {t("swipe.building")}
           </div>
         ) : cards.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 rounded-[2rem] bg-mist px-6 text-center shadow-[0_16px_40px_rgba(23,21,31,0.08)]">
             <ToyMascot className="w-28" mood="sad" />
-            <p className="font-display text-3xl text-ink">Колода пуста</p>
+            <p className="font-display text-3xl text-ink">{t("swipe.emptyTitle")}</p>
             <p className="text-sm font-semibold text-ink/55">
-              Все карточки просмотрены. Загляните в каталог или обновите колоду.
+              {t("swipe.emptyText")}
             </p>
             <div className="flex flex-col gap-2 pt-2 sm:flex-row">
               <button
@@ -263,13 +306,13 @@ export function SwipeDeck() {
                 onClick={() => load()}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-bold text-cream"
               >
-                <RotateCcw size={16} /> Обновить
+                <RotateCcw size={16} /> {t("swipe.refresh")}
               </button>
               <Link
                 to="/browse"
                 className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-bold text-ink"
               >
-                Каталог
+                {t("swipe.catalog")}
               </Link>
             </div>
           </div>
@@ -317,7 +360,7 @@ export function SwipeDeck() {
                     <img
                       src={
                         mediaUrl(card.media[0]?.url) ||
-                        "https://placehold.co/600x800/8B7CFF/F7F3EA?text=SwapToy"
+                        "https://placehold.co/600x800/8B7CFF/F7F3EA?text=Retoy"
                       }
                       alt={card.title}
                       className="absolute inset-0 h-full w-full object-cover"
@@ -343,7 +386,7 @@ export function SwipeDeck() {
                           transform: `rotate(-12deg) scale(${0.85 + likeOpacity * 0.2})`,
                         }}
                       >
-                        Да!
+                        {t("swipe.yes")}
                       </div>
                     )}
                     {isTop && passOpacity > 0.12 && (
@@ -354,7 +397,7 @@ export function SwipeDeck() {
                           transform: `rotate(12deg) scale(${0.85 + passOpacity * 0.2})`,
                         }}
                       >
-                        Нет
+                        {t("swipe.no")}
                       </div>
                     )}
 
@@ -365,7 +408,7 @@ export function SwipeDeck() {
                             {card.title}
                           </h2>
                           <p className="mt-1.5 text-sm font-semibold text-cream/75">
-                            {card.condition} · {card.city}
+                            {labels.condition(card.condition)} · {card.city}
                             {card.district ? `, ${card.district}` : ""}
                           </p>
                         </div>
@@ -375,7 +418,7 @@ export function SwipeDeck() {
                       </div>
                       {card.wantText && (
                         <p className="line-clamp-2 rounded-2xl bg-white/10 px-3 py-2 text-sm font-semibold text-sand">
-                          хочет: {card.wantText}
+                          {t("swipe.wants", { text: card.wantText })}
                         </p>
                       )}
                       <div className="flex items-center gap-2 pt-1">
@@ -407,7 +450,7 @@ export function SwipeDeck() {
           <button
             type="button"
             disabled={busy}
-            aria-label="Пропустить"
+            aria-label={t("swipe.skip")}
             onClick={() => top && commit("PASS", top)}
             className={clsx(
               "flex h-16 w-16 items-center justify-center rounded-full bg-coral text-white shadow-[0_8px_0_#c44a3a] transition active:translate-y-1 active:shadow-none disabled:opacity-50",
@@ -418,12 +461,13 @@ export function SwipeDeck() {
           </button>
           <button
             type="button"
-            disabled={busy || !canLike}
-            aria-label="Хочу обмен"
+            disabled={busy}
+            aria-label={t("swipe.like")}
             onClick={() => top && commit("LIKE", top)}
             className={clsx(
               "flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full bg-sand text-ink shadow-[0_8px_0_#b8d63a] transition active:translate-y-1 active:shadow-none disabled:opacity-50",
               likeOpacity > 0.4 && "scale-110 animate-pop",
+              !canLike && "opacity-60",
             )}
           >
             <Heart size={32} fill="currentColor" />
@@ -433,11 +477,11 @@ export function SwipeDeck() {
 
       <p className="text-center text-xs font-bold text-ink/35">
         <Link to="/browse" className="underline-offset-2 hover:underline">
-          Каталог списком
+          {t("swipe.catalogList")}
         </Link>
         {" · "}
         <Link to="/matches" className="underline-offset-2 hover:underline">
-          Матчи
+          {t("swipe.matches")}
         </Link>
       </p>
 
@@ -446,9 +490,9 @@ export function SwipeDeck() {
           <div className="relative w-full max-w-sm overflow-hidden rounded-[2rem] bg-cream p-6 shadow-[0_20px_60px_rgba(23,21,31,0.3)] animate-bouncein">
             <ConfettiBurst />
             <ToyMascot className="mx-auto w-28" mood="yay" />
-            <p className="text-center font-display text-4xl text-ink">Это матч!</p>
+            <p className="text-center font-display text-4xl text-ink">{t("swipe.matchTitle")}</p>
             <p className="mt-2 text-center text-sm font-semibold text-ink/60">
-              Вы и {match.theirUserName} хотите обменяться
+              {t("swipe.matchText", { name: match.theirUserName })}
             </p>
             <p className="mt-4 rounded-3xl bg-sand px-3 py-3 text-center text-base font-extrabold text-ink">
               {match.myItemTitle}
@@ -462,14 +506,14 @@ export function SwipeDeck() {
                 onClick={() => startTrade()}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-forest px-4 font-extrabold text-white shadow-[0_6px_0_#6f63d6]"
               >
-                Начать обмен
+                {t("swipe.start")}
               </button>
               <button
                 type="button"
                 onClick={() => setMatch(null)}
                 className="inline-flex min-h-11 items-center justify-center rounded-full text-sm font-bold text-ink/50"
               >
-                Продолжить свайпать
+                {t("swipe.keepSwiping")}
               </button>
             </div>
           </div>

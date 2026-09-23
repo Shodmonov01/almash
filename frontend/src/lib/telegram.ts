@@ -1,3 +1,4 @@
+import i18n from "@/lib/i18n";
 export type TelegramAuthPayload = {
   id: number;
   first_name?: string;
@@ -10,8 +11,10 @@ export type TelegramAuthPayload = {
 
 type TelegramWebApp = {
   initData?: string;
+  initDataUnsafe?: { user?: { allows_write_to_pm?: boolean } };
   ready: () => void;
   expand: () => void;
+  requestWriteAccess?: (callback?: (granted: boolean) => void) => void;
 };
 
 type TelegramLogin = {
@@ -69,7 +72,7 @@ function loadWidgetScript() {
     script.dataset.telegramLoginWidget = "1";
     script.onload = () => resolve();
     script.onerror = () =>
-      reject(new Error("Не удалось загрузить Telegram Widget"));
+      reject(new Error(i18n.t("errors.tgWidgetLoad")));
     document.head.appendChild(script);
   });
 }
@@ -77,14 +80,33 @@ function loadWidgetScript() {
 export async function requestTelegramWidgetAuth(botId: number) {
   await loadWidgetScript();
   const auth = window.Telegram?.Login?.auth;
-  if (!auth) throw new Error("Telegram Login недоступен в этом браузере");
+  if (!auth) throw new Error(i18n.t("errors.tgLoginUnavailable"));
   return new Promise<TelegramAuthPayload>((resolve, reject) => {
     auth({ bot_id: botId, request_access: "write", lang: "ru" }, (data) => {
       if (!data) {
-        reject(new Error("Вход через Telegram отменён"));
+        reject(new Error(i18n.t("errors.tgLoginCancelled")));
         return;
       }
       resolve(data);
     });
+  });
+}
+
+/**
+ * TZ §50: the bot can only message users who allowed it. Inside the Mini App
+ * ask for that permission (Telegram shows its own confirmation) — returns
+ * true/false, or null outside Telegram / on old clients.
+ */
+export function ensureTelegramWriteAccess(): Promise<boolean | null> {
+  const webApp = window.Telegram?.WebApp;
+  if (!webApp?.initData) return Promise.resolve(null);
+  if (webApp.initDataUnsafe?.user?.allows_write_to_pm) return Promise.resolve(true);
+  if (typeof webApp.requestWriteAccess !== "function") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      webApp.requestWriteAccess!((granted) => resolve(Boolean(granted)));
+    } catch {
+      resolve(null);
+    }
   });
 }

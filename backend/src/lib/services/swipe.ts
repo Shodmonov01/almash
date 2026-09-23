@@ -87,7 +87,8 @@ export async function getSwipeDeck(userId: string, limit = 20): Promise<{
   });
 
   const scored: DeckCard[] = candidates
-    .filter((c) => c.owner.status === "ACTIVE")
+    // Warned/limited owners stay visible (TZ §42 limits offers, not listings)
+    .filter((c) => c.owner.status !== "BLOCKED")
     .map((c) => {
       let best = 15;
       let reasons: string[] = ["новые объявления"];
@@ -177,7 +178,7 @@ export async function recordSwipe(params: {
   if (target.ownerId === params.userId) {
     throw Object.assign(new Error("Нельзя свайпать свои вещи"), { status: 400 });
   }
-  if (target.owner.status !== "ACTIVE") {
+  if (target.owner.status === "BLOCKED") {
     throw Object.assign(new Error("Пользователь недоступен"), { status: 400 });
   }
 

@@ -13,6 +13,14 @@ type MultipartFile = {
   mimetype: string;
 };
 
+type MultipartBodyValue = {
+  type?: string;
+  value?: unknown;
+  filename?: string;
+  mimetype?: string;
+  toBuffer?: () => Promise<Buffer>;
+};
+
 export function toAppRequest(req: FastifyRequest): AppRequest {
   const host = String(req.headers.host || "localhost");
   const proto = String(req.headers["x-forwarded-proto"] || "http");
@@ -31,31 +39,44 @@ export function toAppRequest(req: FastifyRequest): AppRequest {
     },
     async formData() {
       const fd = new FormData();
-      const fileReq = req as FastifyRequest & {
-        file?: () => Promise<MultipartFile | undefined>;
-      };
+      const body = (req.body || {}) as Record<string, MultipartBodyValue | unknown>;
 
-      if (typeof fileReq.file === "function") {
-        const file = await fileReq.file();
-        if (file) {
-          const buf = await file.toBuffer();
+      // Режим 1: attachFieldsToBody — файл(ы) уже лежат в req.body как объекты с toBuffer()
+      let foundFileInBody = false;
+      for (const [key, raw] of Object.entries(body)) {
+        const val = raw as MultipartBodyValue;
+        if (val && typeof val === "object" && typeof val.toBuffer === "function") {
+          foundFileInBody = true;
+          const buf = await val.toBuffer();
           fd.append(
-            "file",
-            new File([buf], file.filename || "upload.jpg", {
-              type: file.mimetype || "image/jpeg",
-            }),
+              key,
+              new File([buf], val.filename || "upload.jpg", {
+                type: val.mimetype || "image/jpeg",
+              }),
           );
+        } else if (val && typeof val === "object" && "value" in val) {
+          fd.append(key, String((val as { value: unknown }).value));
+        } else if (val != null) {
+          fd.append(key, String(val));
         }
       }
 
-      const body = (req.body || {}) as Record<string, unknown>;
-      for (const [key, value] of Object.entries(body)) {
-        if (key === "file") continue;
-        if (value == null) continue;
-        if (typeof value === "object" && value !== null && "value" in value) {
-          fd.append(key, String((value as { value: unknown }).value));
-        } else {
-          fd.append(key, String(value));
+      // Режим 2: req.file() — используется, если поле не пришло через body
+      if (!foundFileInBody) {
+        const fileReq = req as FastifyRequest & {
+          file?: () => Promise<MultipartFile | undefined>;
+        };
+        if (typeof fileReq.file === "function") {
+          const file = await fileReq.file();
+          if (file) {
+            const buf = await file.toBuffer();
+            fd.append(
+                "file",
+                new File([buf], file.filename || "upload.jpg", {
+                  type: file.mimetype || "image/jpeg",
+                }),
+            );
+          }
         }
       }
 

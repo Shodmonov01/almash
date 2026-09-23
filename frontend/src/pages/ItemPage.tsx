@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Heart, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, RefreshCw } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
 import { ReportButton } from "@/components/ReportButton";
-import { TRUST_LEVELS } from "@/lib/constants";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { useLabels } from "@/lib/labels";
 
 type ItemDetail = {
   id: string;
@@ -46,13 +47,21 @@ export default function ItemPage() {
   const navigate = useNavigate();
   const [item, setItem] = useState<ItemDetail | null>(null);
   const [myItems, setMyItems] = useState<MyItem[]>([]);
+  const [mySets, setMySets] = useState<
+    { id: string; title: string; items: { item: { id: string } }[] }[]
+  >([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [offerOpen, setOfferOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [activePhoto, setActivePhoto] = useState(0);
+  const { t } = useTranslation();
+  const labels = useLabels();
+
   useEffect(() => {
+    setActivePhoto(0);
     api<{ item: ItemDetail }>(`/api/items/${id}`).then((d) => setItem(d.item));
   }, [id]);
 
@@ -61,13 +70,18 @@ export default function ItemPage() {
     api<{ items: MyItem[] }>(`/api/items?ownerId=${user.id}`).then((d) =>
       setMyItems(d.items.filter((i) => (i as MyItem & { status?: string }).status !== "HIDDEN")),
     );
+    api<{ sets: typeof mySets }>("/api/sets").then((d) =>
+      setMySets(d.sets || []),
+    );
   }, [user, offerOpen]);
 
-  if (!item) return <p className="text-ink/50">Загрузка…</p>;
+  if (!item) return <p className="text-ink/50">{t("pages.loading")}</p>;
 
-  const trust =
-    TRUST_LEVELS[item.owner.trustLevel as keyof typeof TRUST_LEVELS]?.label ||
-    item.owner.trustLevel;
+  const photos = item.media.filter((m) => m.type !== "VIDEO");
+  const showPhoto = (i: number) =>
+    setActivePhoto((i + photos.length) % Math.max(photos.length, 1));
+
+  const trust = labels.trust(item.owner.trustLevel);
   const isOwner = user?.id === item.owner.id;
 
   async function toggleFav() {
@@ -82,7 +96,7 @@ export default function ItemPage() {
   async function sendOffer() {
     if (!user) return navigate("/login");
     if (selected.length === 0) {
-      setError("Выберите хотя бы один свой предмет");
+      setError(t("itemPage.pickOne"));
       return;
     }
     setBusy(true);
@@ -98,7 +112,7 @@ export default function ItemPage() {
       });
       navigate(`/trades/${d.trade.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -107,38 +121,85 @@ export default function ItemPage() {
   return (
     <div className="grid gap-5 animate-rise sm:gap-8 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="space-y-3">
-        <div className="-mx-3 overflow-hidden bg-mist sm:mx-0 sm:rounded-3xl">
+        <div className="relative -mx-3 overflow-hidden bg-mist sm:mx-0 sm:rounded-3xl">
           <img
-            src={mediaUrl(item.media[0]?.url)}
+            src={mediaUrl(photos[activePhoto]?.url)}
             alt={item.title}
             className="aspect-square w-full object-cover"
           />
+          {photos.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label={t("itemPage.prevPhoto")}
+                onClick={() => showPhoto(activePhoto - 1)}
+                className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur transition hover:bg-white active:scale-95"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                type="button"
+                aria-label={t("itemPage.nextPhoto")}
+                onClick={() => showPhoto(activePhoto + 1)}
+                className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/85 text-ink shadow-md backdrop-blur transition hover:bg-white active:scale-95"
+              >
+                <ChevronRight size={20} />
+              </button>
+              <span className="absolute bottom-3 right-3 rounded-full bg-ink/60 px-2.5 py-1 text-xs font-semibold text-white">
+                {activePhoto + 1} / {photos.length}
+              </span>
+            </>
+          )}
         </div>
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-none">
-          {item.media.map((m) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+        {/* p-1: room for the active thumbnail's ring inside the scroll box */}
+        <div className="-mx-1 flex gap-2.5 overflow-x-auto p-1 scrollbar-none">
+          {photos.map((m, i) => (
+            <button
               key={m.url}
-              src={mediaUrl(m.url)}
-              alt=""
-              className="h-16 w-16 shrink-0 rounded-xl object-cover ring-1 ring-forest/10 sm:h-20 sm:w-20"
-            />
+              type="button"
+              aria-label={t("itemPage.photo", { n: i + 1 })}
+              aria-current={i === activePhoto}
+              onClick={() => showPhoto(i)}
+              className={`shrink-0 overflow-hidden rounded-xl transition ${
+                i === activePhoto
+                  ? "ring-2 ring-forest ring-offset-2 ring-offset-cream"
+                  : "opacity-70 ring-1 ring-forest/10 hover:opacity-100"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mediaUrl(m.url)}
+                alt=""
+                className="h-16 w-16 object-cover sm:h-20 sm:w-20"
+              />
+            </button>
           ))}
         </div>
+        {item.media
+          .filter((m) => m.type === "VIDEO")
+          .map((m) => (
+            <video
+              key={m.url}
+              src={mediaUrl(m.url)}
+              controls
+              preload="metadata"
+              className="w-full rounded-2xl bg-black sm:rounded-3xl"
+            />
+          ))}
       </div>
 
       <div className="space-y-4 sm:space-y-5">
         <div>
           <p className="text-xs text-ink/50 sm:text-sm">
-            {item.category}
-            {item.subcategory ? ` · ${item.subcategory}` : ""}
+            {labels.category(item.category)}
+            {item.subcategory ? ` · ${labels.subcategory(item.subcategory)}` : ""}
             {item.brand ? ` · ${item.brand}` : ""}
           </p>
           <h1 className="font-display text-2xl leading-tight text-forest sm:text-3xl">
             {item.title}
           </h1>
           <p className="mt-2 text-sm text-ink/60">
-            {item.condition} · {item.city}
+            {labels.condition(item.condition)} · {item.city}
             {item.district ? `, ${item.district}` : ""}
           </p>
         </div>
@@ -149,13 +210,13 @@ export default function ItemPage() {
 
         {(item.hasDamage || item.damageNotes) && (
           <div className="rounded-xl bg-coral/10 p-3 text-sm text-coral">
-            Повреждения: {item.damageNotes || "указаны"}
+            {t("itemPage.damage", { notes: item.damageNotes || t("itemPage.damageYes") })}
           </div>
         )}
 
         <div className="rounded-2xl bg-forest/5 p-4">
-          <p className="text-sm font-medium text-forest">Хочу получить</p>
-          <p className="mt-1 text-sm">{item.wantText || "Любые предложения"}</p>
+          <p className="text-sm font-medium text-forest">{t("itemPage.wantTitle")}</p>
+          <p className="mt-1 text-sm">{item.wantText || t("itemPage.wantAny")}</p>
         </div>
 
         <Link
@@ -170,7 +231,8 @@ export default function ItemPage() {
           <div className="flex-1">
             <p className="font-medium">{item.owner.name}</p>
             <p className="text-xs text-ink/55">
-              ★ {item.owner.rating.toFixed(1)} · {item.owner.completedTrades} обменов ·{" "}
+              ★ {item.owner.rating.toFixed(1)} ·{" "}
+              {t("itemPage.trades", { count: item.owner.completedTrades })} ·{" "}
               {trust}
             </p>
           </div>
@@ -187,7 +249,7 @@ export default function ItemPage() {
               size={16}
               className={item.favorited ? "fill-coral text-coral" : ""}
             />
-            Избранное
+            {t("itemPage.favorite")}
           </button>
           {!isOwner && item.status === "ACTIVE" && (
             <button
@@ -199,24 +261,49 @@ export default function ItemPage() {
               className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-coral px-4 py-3 text-sm font-semibold text-white"
             >
               <RefreshCw size={16} />
-              Предложить обмен
+              {t("itemPage.offer")}
             </button>
           )}
           {!isOwner && item.status === "IN_TRADE" && (
             <p className="w-full rounded-xl bg-sand/80 px-4 py-3 text-sm text-ink/70">
-              Предмет уже участвует в сделке. Дождитесь завершения или отмены.
+              {t("itemPage.inTrade")}
             </p>
           )}
           {!isOwner && item.status === "TRADED" && (
             <p className="w-full rounded-xl bg-mist/80 px-4 py-3 text-sm text-ink/70">
-              Предмет уже обменян.
+              {t("itemPage.traded")}
             </p>
           )}
         </div>
 
         {offerOpen && (
           <div className="space-y-3 rounded-2xl border border-forest/15 bg-white p-4">
-            <p className="font-medium">Выберите свои предметы (можно несколько)</p>
+            <div className="flex flex-wrap items-center justify-between gap-1">
+              <p className="font-medium">{t("itemPage.pickMine")}</p>
+              {mySets.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-xs text-ink/60">{t("itemPage.pickSet")}</span>
+                  {mySets.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        const setIds = s.items.map((i) => i.item.id);
+                        setSelected((prev) => {
+                          const allIncluded = setIds.every((id) => prev.includes(id));
+                          return allIncluded
+                            ? prev.filter((id) => !setIds.includes(id))
+                            : [...new Set([...prev, ...setIds])];
+                        });
+                      }}
+                      className="rounded-lg bg-forest/10 px-2 py-0.5 text-xs font-semibold text-forest hover:bg-forest/20"
+                    >
+                      📦 {s.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
               {myItems
                 .filter((i) => i.id)
@@ -250,7 +337,7 @@ export default function ItemPage() {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Сообщение к предложению (без денег и контактов)"
+              placeholder={t("itemPage.messagePlaceholder")}
               className="w-full rounded-xl border border-forest/15 p-2 text-sm"
               rows={2}
             />
@@ -261,7 +348,7 @@ export default function ItemPage() {
               onClick={sendOffer}
               className="w-full rounded-xl bg-forest py-3 text-sm font-semibold text-cream disabled:opacity-60"
             >
-              {busy ? "Отправка…" : "Отправить предложение"}
+              {busy ? t("itemPage.sending") : t("itemPage.send")}
             </button>
           </div>
         )}

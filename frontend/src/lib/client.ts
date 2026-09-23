@@ -1,14 +1,15 @@
 import { getAuthToken } from "./session";
 import { apiUrl } from "./env";
+import i18n from "@/lib/i18n";
 
 export async function api<T = unknown>(
-  path: string,
-  init?: RequestInit,
+    path: string,
+    init?: RequestInit,
 ): Promise<T> {
   const headers = new Headers(init?.headers);
   const isForm =
-    typeof FormData !== "undefined" && init?.body instanceof FormData;
-  if (!isForm && !headers.has("Content-Type")) {
+      typeof FormData !== "undefined" && init?.body instanceof FormData;
+  if (!isForm && init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
   const token = getAuthToken();
@@ -22,7 +23,7 @@ export async function api<T = unknown>(
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error((data as { error?: string }).error || "Ошибка запроса") as Error & {
+    const err = new Error((data as { error?: string }).error || i18n.t("errors.request")) as Error & {
       status: number;
       data: unknown;
     };
@@ -49,6 +50,7 @@ export type User = {
   createdAt?: string;
   bio?: string | null;
   onboardingDone?: boolean;
+  tgNotify?: boolean;
   riskScoreCached?: number;
   hasPassword?: boolean;
   telegramLinked?: boolean;

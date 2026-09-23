@@ -11,7 +11,11 @@ type Ctx = { params: Promise<{ id: string }> };
 const schema = z.object({
   reason: z.enum(DISPUTE_REASONS as unknown as [string, ...string[]]),
   description: z.string().min(10).max(4000),
-  evidence: z.array(z.string()).optional(),
+  // Files uploaded to this server (photos / videos), max 10
+  evidence: z
+    .array(z.string().regex(/^\/uploads\/[\w.-]+$/, "Недопустимый файл"))
+    .max(10)
+    .optional(),
 });
 
 export async function POST(req: AppRequest, ctx: Ctx) {
@@ -25,8 +29,14 @@ export async function POST(req: AppRequest, ctx: Ctx) {
     if (trade.initiatorId !== user.id && trade.recipientId !== user.id) {
       return jsonError("Нет доступа", 403);
     }
-    if (["CANCELLED", "BLOCKED"].includes(trade.status)) {
+    if (["CANCELLED", "BLOCKED", "EXPIRED", "DRAFT"].includes(trade.status)) {
       return jsonError("Спор недоступен", 400);
+    }
+    const openDispute = await prisma.dispute.findFirst({
+      where: { tradeId: trade.id, status: { in: ["OPEN", "IN_REVIEW"] } },
+    });
+    if (openDispute) {
+      return jsonError("По этой сделке уже открыт спор", 400);
     }
 
     const body = schema.parse(await req.json());
@@ -64,6 +74,16 @@ export async function POST(req: AppRequest, ctx: Ctx) {
       tradeId: trade.id,
       action: "DISPUTE_OPENED",
       meta: { reason: body.reason },
+    });
+
+    const otherId =
+      user.id === trade.initiatorId ? trade.recipientId : trade.initiatorId;
+    await notify({
+      userId: otherId,
+      tradeId: trade.id,
+      type: "DISPUTE",
+      title: "Открыт спор",
+      body: `${trade.publicId}: ${body.reason}`,
     });
 
     const admins = await prisma.user.findMany({ where: { role: "ADMIN" } });

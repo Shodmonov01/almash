@@ -1,3 +1,5 @@
+import { randomInt } from "crypto";
+import { deliverTelegram } from "./services/telegram-notify";
 import { prisma } from "./db";
 
 export async function writeAudit(params: {
@@ -23,7 +25,7 @@ export async function notify(params: {
   title: string;
   body: string;
 }) {
-  await prisma.notification.create({
+  const n = await prisma.notification.create({
     data: {
       userId: params.userId,
       tradeId: params.tradeId ?? null,
@@ -32,6 +34,9 @@ export async function notify(params: {
       body: params.body,
     },
   });
+  // TZ §50: push to Telegram in the background — never slows down or fails the
+  // request; the outbox loop retries transient errors.
+  void deliverTelegram(n.id);
 }
 
 export function nextPublicTradeId(seq: number, year = new Date().getFullYear()) {
@@ -40,14 +45,14 @@ export function nextPublicTradeId(seq: number, year = new Date().getFullYear()) 
 
 export function randomCode(len = 4) {
   let s = "";
-  for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 10);
+  for (let i = 0; i < len; i++) s += randomInt(10);
   return s;
 }
 
 export function randomToken(len = 24) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let s = "";
-  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < len; i++) s += chars[randomInt(chars.length)];
   return s;
 }
 

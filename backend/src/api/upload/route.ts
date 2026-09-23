@@ -4,11 +4,13 @@ import { handleApiError, jsonError, jsonOk } from "@/lib/api";
 import { assertRateLimit, RateLimitError } from "@/lib/services/rate-limit";
 import {
   findDuplicatePhotos,
+  storeOriginal,
   watermarkAndStore,
 } from "@/lib/services/media";
 import { prisma } from "@/lib/db";
 import { writeAudit } from "@/lib/utils";
 import { computeRiskScore } from "@/lib/antifraud";
+import { refreshUserRisk } from "@/lib/services/risk";
 
 export async function POST(req: AppRequest) {
   try {
@@ -32,6 +34,7 @@ export async function POST(req: AppRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const stored = await watermarkAndStore({ buffer, itemId, sortOrder });
+    await storeOriginal(stored.url, buffer);
 
     // Duplicate detection across accounts
     const dupes = await findDuplicatePhotos(stored.phash, user.id);
@@ -63,10 +66,7 @@ export async function POST(req: AppRequest) {
           detail: `phash=${stored.phash} matches=${dupes.length}`,
         },
       });
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { riskScoreCached: { increment: 15 } },
-      });
+      await refreshUserRisk(user.id);
     }
 
     await writeAudit({

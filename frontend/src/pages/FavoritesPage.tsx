@@ -3,10 +3,12 @@ import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function FavoritesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<ItemCardData[]>([]);
 
   useEffect(() => {
@@ -24,10 +26,11 @@ export default function FavoritesPage() {
 
   return (
     <div className="space-y-6 animate-rise">
-      <h1 className="font-display text-3xl text-forest">Избранное</h1>
+      <h1 className="font-display text-3xl text-forest">{t("pages.favorites.title")}</h1>
       {items.length === 0 ? (
         <p className="text-ink/50">
-          Пусто. <Link to="/" className="text-coral underline">Найти обмен</Link>
+          {t("pages.favorites.empty")}{" "}
+          <Link to="/" className="text-coral underline">{t("pages.favorites.find")}</Link>
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">

@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/utils";
 
 const schema = z.object({
   onboardingDone: z.boolean().optional(),
+  tgNotify: z.boolean().optional(),
   city: z.string().optional(),
   district: z.string().optional(),
   bio: z.string().max(500).optional(),
@@ -49,6 +50,7 @@ export async function PATCH(req: AppRequest) {
         id: true,
         name: true,
         onboardingDone: true,
+        tgNotify: true,
         city: true,
         district: true,
         bio: true,

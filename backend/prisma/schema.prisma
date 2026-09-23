@@ -31,7 +31,9 @@ model User {
   warningCount     Int      @default(0)
   moneyViolations  Int      @default(0)
   riskScoreCached  Int      @default(0)
+  riskClearedAt    DateTime? // moderator reviewed the account; older signals don't restrict
   onboardingDone   Boolean  @default(false)
+  tgNotify         Boolean  @default(true) // Telegram notifications on/off
   deviceFingerprint String?
   lastIp           String?
   telegramAuthDate DateTime?
@@ -367,10 +369,18 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  // Telegram delivery outbox (TZ §50): PENDING | SENDING | SENT | FAILED | SKIPPED
+  tgStatus   String    @default("PENDING")
+  tgAttempts Int       @default(0)
+  tgNextAt   DateTime? // retry backoff / lease while SENDING
+  tgSentAt   DateTime?
+  tgError    String?
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   trade     Trade?   @relation(fields: [tradeId], references: [id])
 
   @@index([userId, read])
+  @@index([tgStatus, tgNextAt])
 }
 
 model ForbiddenCategory {

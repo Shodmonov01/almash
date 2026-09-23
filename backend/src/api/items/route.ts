@@ -3,7 +3,12 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSessionUser, requireUser } from "@/lib/auth";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
-import { scanContent } from "@/lib/antifraud";
+import { computeRiskScore, MONEY_REASONS, scanContent } from "@/lib/antifraud";
+import {
+  findDuplicatePhotos,
+  loadUploadedPhoto,
+  watermarkAndStore,
+} from "@/lib/services/media";
 import { parseJsonArray, writeAudit } from "@/lib/utils";
 import { CONDITIONS } from "@/lib/constants";
 import { rankFeedForUser } from "@/lib/services/matching";
@@ -12,6 +17,11 @@ import {
   assertRateLimit,
   RateLimitError,
 } from "@/lib/services/rate-limit";
+import {
+  findDuplicateDescriptions,
+  findForbiddenCategory,
+  refreshUserRisk,
+} from "@/lib/services/risk";
 
 export async function GET(req: AppRequest) {
   try {
@@ -26,6 +36,10 @@ export async function GET(req: AppRequest) {
     const feed = searchParams.get("feed") || "new";
     const meCity = searchParams.get("meCity") || "";
     const meId = searchParams.get("meId") || "";
+    const district = searchParams.get("district") || "";
+    const ageParam = searchParams.get("age");
+    const age = ageParam ? Number(ageParam) : NaN;
+    const inSet = searchParams.get("inSet") === "1";
     const limit = Math.min(Number(searchParams.get("limit") || 24), 50);
 
     const where: Record<string, unknown> = {
@@ -42,16 +56,29 @@ export async function GET(req: AppRequest) {
     if (brand) where.brand = { contains: brand };
     if (condition) where.condition = condition;
     if (city) where.city = city;
+    if (district) where.district = district;
     if (feed === "nearby" && meCity) where.city = meCity;
+    if (inSet) where.setItems = { some: {} };
 
-    if (q) {
-      where.OR = [
-        { title: { contains: q } },
-        { description: { contains: q } },
-        { brand: { contains: q } },
-        { tags: { contains: q } },
-      ];
+    const and: Record<string, unknown>[] = [];
+    if (Number.isFinite(age)) {
+      // Item's age range must include the requested age (open-ended ranges allowed)
+      and.push({ OR: [{ ageFrom: null }, { ageFrom: { lte: age } }] });
+      and.push({ OR: [{ ageTo: null }, { ageTo: { gte: age } }] });
     }
+    if (q) {
+      and.push({
+        OR: [
+          { title: { contains: q } },
+          { description: { contains: q } },
+          { brand: { contains: q } },
+          { model: { contains: q } },
+          { subcategory: { contains: q } },
+          { tags: { contains: q } },
+        ],
+      });
+    }
+    if (and.length) where.AND = and;
 
     let items = await prisma.item.findMany({
       where,
@@ -120,8 +147,8 @@ const createSchema = z.object({
   subcategory: z.string().optional(),
   brand: z.string().optional(),
   model: z.string().optional(),
-  ageFrom: z.number().int().optional(),
-  ageTo: z.number().int().optional(),
+  ageFrom: z.number().int().min(0).max(18).optional(),
+  ageTo: z.number().int().min(0).max(18).optional(),
   condition: z.enum(CONDITIONS as unknown as [string, ...string[]]),
   completeness: z.string().optional(),
   hasDamage: z.boolean().optional(),
@@ -141,32 +168,32 @@ const createSchema = z.object({
   defectsConfirmed: z.literal(true),
   serialNumber: z.string().optional(),
   photos: z.array(z.string()).min(2).max(10),
-  videoUrl: z.string().optional(),
+  videoUrl: z
+    .string()
+    .regex(/^\/uploads\/video-[\w.-]+$/, "Загрузите видео через форму")
+    .optional(),
 });
 
 export async function POST(req: AppRequest) {
   try {
     const user = await requireUser();
     await assertRateLimit(user.id, "create_item");
-    await assertCanTransact(user.id);
+    const { user: dbUser, risk } = await assertCanTransact(user.id, "item");
 
     const body = createSchema.parse(await req.json());
-    const text = `${body.title}\n${body.description}\n${body.wantText || ""}`;
+    const text = [
+      body.title,
+      body.description,
+      body.wantText,
+      body.completeness,
+      body.damageNotes,
+      body.missingParts,
+      ...(body.tags ?? []),
+    ]
+      .filter(Boolean)
+      .join("\n");
     const flag = scanContent(text);
-    if (
-      flag.blocked &&
-      flag.reasons.some((r) =>
-        [
-          "оплата",
-          "доплата",
-          "сумма",
-          "валюта",
-          "карта",
-          "перевод денег",
-          "продажа",
-        ].includes(r),
-      )
-    ) {
+    if (flag.blocked && flag.reasons.some((r) => MONEY_REASONS.has(r))) {
       await prisma.riskEvent.create({
         data: {
           userId: user.id,
@@ -186,14 +213,20 @@ export async function POST(req: AppRequest) {
       return jsonError(flag.message, 400, { reasons: flag.reasons });
     }
 
-    const forbidden = await prisma.forbiddenCategory.findMany({
-      where: { enabled: true },
-    });
-    const lower = text.toLowerCase();
-    for (const f of forbidden) {
-      if (lower.includes(f.name.toLowerCase())) {
-        return jsonError(`Категория запрещена: ${f.name}`, 400);
+    const forbiddenHit = await findForbiddenCategory(
+      [text, body.category, body.subcategory, body.brand, body.model].join("\n"),
+    );
+    if (forbiddenHit) {
+      return jsonError(`Категория запрещена: ${forbiddenHit}`, 400);
+    }
+
+    const photoBuffers: Buffer[] = [];
+    for (const url of body.photos) {
+      const buf = await loadUploadedPhoto(url);
+      if (!buf) {
+        return jsonError("Фото не найдено — загрузите его заново", 400);
       }
+      photoBuffers.push(buf);
     }
 
     const item = await prisma.item.create({
@@ -225,15 +258,10 @@ export async function POST(req: AppRequest) {
         tags: JSON.stringify(body.tags ?? []),
         defectsConfirmed: true,
         serialNumber: body.serialNumber,
-        status: flag.blocked ? "PENDING_MODERATION" : "ACTIVE",
+        // Suspicious text or a high-risk account → manual moderation (TZ §33, §35)
+        status: flag.blocked || risk.highRisk ? "PENDING_MODERATION" : "ACTIVE",
         media: {
           create: [
-            ...body.photos.map((url, i) => ({
-              type: "PHOTO",
-              url,
-              hash: `upload-${Date.now()}-${i}`,
-              sortOrder: i,
-            })),
             ...(body.videoUrl
               ? [
                   {
@@ -249,6 +277,93 @@ export async function POST(req: AppRequest) {
       },
       include: { media: true },
     });
+
+    // Re-watermark with the real listing ID and keep content/perceptual hashes
+    // so duplicate-photo detection (TZ §36–37) has something to compare against.
+    let duplicateCount = 0;
+    for (const [i, buffer] of photoBuffers.entries()) {
+      const stored = await watermarkAndStore({
+        buffer,
+        itemId: item.id,
+        sortOrder: i,
+      });
+      await prisma.itemMedia.create({
+        data: {
+          itemId: item.id,
+          type: "PHOTO",
+          url: stored.url,
+          hash: stored.hash,
+          phash: stored.phash,
+          sortOrder: i,
+        },
+      });
+      const dupes = await findDuplicatePhotos(stored.phash, user.id);
+      if (dupes.length) {
+        duplicateCount += dupes.length;
+        await prisma.moderationQueue.create({
+          data: {
+            type: "DUPLICATE_PHOTO",
+            userId: user.id,
+            itemId: item.id,
+            mediaHash: stored.phash,
+            detail: JSON.stringify(
+              dupes.slice(0, 5).map((d) => ({
+                itemId: d.item.id,
+                ownerId: d.item.ownerId,
+                title: d.item.title,
+              })),
+            ),
+            score: computeRiskScore({
+              isNewAccount: dbUser.completedTrades === 0,
+              duplicatePhotos: true,
+            }),
+          },
+        });
+      }
+    }
+    if (duplicateCount) {
+      await prisma.riskEvent.create({
+        data: {
+          userId: user.id,
+          type: "DUPLICATE_PHOTO",
+          score: 35,
+          detail: `item=${item.id} matches=${duplicateCount}`,
+        },
+      });
+    }
+
+    // TZ §33: identical descriptions on other accounts
+    const sameText = await findDuplicateDescriptions({
+      description: body.description,
+      ownerId: user.id,
+      excludeItemId: item.id,
+    });
+    if (sameText.length) {
+      await prisma.riskEvent.create({
+        data: {
+          userId: user.id,
+          type: "DUPLICATE_DESCRIPTION",
+          score: 30,
+          detail: `item=${item.id} matches=${sameText.length}`,
+        },
+      });
+      await prisma.moderationQueue.create({
+        data: {
+          type: "DUPLICATE_DESCRIPTION",
+          userId: user.id,
+          itemId: item.id,
+          score: 30,
+          detail: JSON.stringify(
+            sameText.slice(0, 5).map((d) => ({
+              itemId: d.id,
+              ownerId: d.ownerId,
+              title: d.title,
+            })),
+          ),
+        },
+      });
+    }
+    if (duplicateCount || sameText.length) await refreshUserRisk(user.id);
 
     await writeAudit({
       userId: user.id,

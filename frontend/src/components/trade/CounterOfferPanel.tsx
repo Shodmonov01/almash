@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
+import { useTranslation } from "react-i18next";
 
 type MiniItem = {
   id: string;
@@ -33,6 +34,7 @@ export function CounterOfferPanel({
   const [targets, setTargets] = useState<string[]>(currentTargetIds);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export function CounterOfferPanel({
 
   async function submit() {
     if (!offered.length || !targets.length) {
-      setError("Выберите хотя бы по одному предмету с каждой стороны");
+      setError(t("counter.pickBoth"));
       return;
     }
     setBusy(true);
@@ -76,7 +78,7 @@ export function CounterOfferPanel({
       });
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -84,20 +86,20 @@ export function CounterOfferPanel({
 
   return (
     <div className="space-y-4 rounded-3xl border border-forest/15 bg-white p-5">
-      <h3 className="font-display text-xl text-forest">Изменить состав обмена</h3>
+      <h3 className="font-display text-xl text-forest">{t("counter.title")}</h3>
       <p className="text-sm text-ink/60">
-        Изменения создают новую версию сделки. Условия нужно подтвердить заново.
+        {t("counter.hint")}
       </p>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Picker
-          title="Сторона A отдаёт"
+          title={t("counter.sideA")}
           items={sideA}
           selected={offered}
           onToggle={(id) => toggle(offered, id, setOffered)}
         />
         <Picker
-          title="Сторона B отдаёт"
+          title={t("counter.sideB")}
           items={sideB}
           selected={targets}
           onToggle={(id) => toggle(targets, id, setTargets)}
@@ -107,7 +109,7 @@ export function CounterOfferPanel({
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="Комментарий к изменению"
+        placeholder={t("counter.note")}
         className="w-full rounded-xl border border-forest/15 px-3 py-2 text-sm"
       />
       {error && <p className="text-sm text-coral">{error}</p>}
@@ -117,7 +119,7 @@ export function CounterOfferPanel({
         onClick={submit}
         className="rounded-xl bg-forest px-4 py-2 text-sm font-medium text-cream disabled:opacity-60"
       >
-        {busy ? "Сохранение…" : "Отправить новую версию"}
+        {busy ? t("counter.saving") : t("counter.submit")}
       </button>
     </div>
   );
@@ -134,6 +136,7 @@ function Picker({
   selected: string[];
   onToggle: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div>
       <p className="mb-2 text-sm font-medium">{title}</p>
@@ -161,7 +164,7 @@ function Picker({
           );
         })}
         {items.length === 0 && (
-          <p className="text-xs text-ink/45">Нет доступных предметов</p>
+          <p className="text-xs text-ink/45">{t("counter.noItems")}</p>
         )}
       </div>
     </div>

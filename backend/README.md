@@ -1,4 +1,4 @@
-# SwapToy API
+# Retoy API
 
 Fastify + Prisma + SQLite. Не зависит от фронтенда: свой `package.json`, свой `.env`, свой `node_modules`.
 

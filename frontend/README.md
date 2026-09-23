@@ -1,4 +1,4 @@
-# SwapToy UI
+# Retoy UI
 
 React (Vite + React Router + Tailwind). Не зависит от бэкенда как от npm-пакета: ходит в API по HTTP.
 

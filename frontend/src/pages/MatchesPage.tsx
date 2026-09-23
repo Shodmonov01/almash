@@ -3,6 +3,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type Match = {
   type: "DIRECT" | "CHAIN";
@@ -33,6 +34,7 @@ type Mutual = {
 export default function MatchesPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [matches, setMatches] = useState<Match[]>([]);
   const [mutual, setMutual] = useState<Mutual[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function MatchesPage() {
         body: JSON.stringify({
           targetItemIds: [m.theirItem.id],
           offeredItemIds: [m.myItem.id],
-          message: "Матч из свайпа — давай обменяемся!",
+          message: t("matches.swipeMessage"),
         }),
       });
       navigate(`/trades/${d.trade.id}`);
@@ -71,21 +73,20 @@ export default function MatchesPage() {
   return (
     <div className="space-y-8 animate-rise">
       <div>
-        <h1 className="font-display text-4xl text-ink">Матчи</h1>
+        <h1 className="font-display text-4xl text-ink">{t("matches.title")}</h1>
         <p className="text-ink/60">
-          Взаимные свайпы и подсказки по «хочу получить».{" "}
+          {t("matches.subtitle")}{" "}
           <Link to="/" className="text-coral underline-offset-2 hover:underline">
-            Свайпать дальше
+            {t("matches.keepSwiping")}
           </Link>
         </p>
       </div>
 
       <section className="space-y-3">
-        <h2 className="font-display text-xl text-forest">Взаимные свайпы</h2>
+        <h2 className="font-display text-xl text-forest">{t("matches.mutualTitle")}</h2>
         {mutual.length === 0 ? (
           <p className="rounded-2xl bg-white/60 p-6 text-center text-sm text-ink/60">
-            Пока нет взаимных лайков. Свайпните вправо то, что хотите, и ждите
-            ответа.
+            {t("matches.mutualEmpty")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -108,12 +109,12 @@ export default function MatchesPage() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-coral">Это матч</p>
+                  <p className="text-xs font-medium text-coral">{t("matches.itsMatch")}</p>
                   <p className="font-medium">
                     {m.myItem.title} ⇄ {m.theirItem.title}
                   </p>
                   <p className="text-sm text-ink/60">
-                    с {m.theirItem.owner.name} · {m.theirItem.city}
+                    {t("matches.with", { name: m.theirItem.owner.name, city: m.theirItem.city })}
                   </p>
                 </div>
                 <button
@@ -122,7 +123,7 @@ export default function MatchesPage() {
                   onClick={() => startFromMutual(m)}
                   className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-coral px-4 text-sm font-medium text-white sm:w-auto"
                 >
-                  Начать обмен
+                  {t("matches.start")}
                 </button>
               </div>
             ))}
@@ -131,10 +132,10 @@ export default function MatchesPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display text-xl text-forest">Подсказки</h2>
+        <h2 className="font-display text-xl text-forest">{t("matches.hintsTitle")}</h2>
         {matches.length === 0 ? (
           <p className="rounded-2xl bg-white/60 p-6 text-center text-sm text-ink/60">
-            Пока нет матчей. Добавьте объявления с блоком «хочу получить».
+            {t("matches.hintsEmpty")}
           </p>
         ) : (
           <div className="space-y-3">
@@ -150,7 +151,7 @@ export default function MatchesPage() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-coral">
-                    {m.type === "DIRECT" ? "Прямой match" : "Цепочка"} · score{" "}
+                    {m.type === "DIRECT" ? t("matches.direct") : t("matches.chain")} · score{" "}
                     {m.score}
                   </p>
                   <p className="font-medium">{m.reason}</p>
@@ -161,7 +162,7 @@ export default function MatchesPage() {
                   </p>
                   {m.chain && (
                     <p className="text-xs text-ink/45">
-                      через: {m.chain.map((c) => c.viaItemTitle).join(" → ")}
+                      {t("matches.via", { path: m.chain.map((c) => c.viaItemTitle).join(" → ") })}
                     </p>
                   )}
                 </div>
@@ -169,7 +170,7 @@ export default function MatchesPage() {
                   to={`/items/${m.theirItem.id}`}
                   className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-forest px-4 py-2 text-sm text-cream sm:w-auto"
                 >
-                  Открыть
+                  {t("matches.open")}
                 </Link>
               </div>
             ))}

@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
 import { createSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/utils";
+import { syncTelegramAvatar } from "@/lib/services/telegram-avatar";
 
 export type TelegramProfile = {
   id: number;
@@ -228,7 +229,6 @@ export async function loginWithTelegram(params: {
       where: { id: account.id },
       data: {
         telegramId: tgId,
-        avatarUrl: identity.photo_url || account.avatarUrl,
         deviceFingerprint: params.deviceFingerprint || account.deviceFingerprint,
         lastIp: params.ip || account.lastIp,
         telegramAuthDate: new Date(),
@@ -246,7 +246,6 @@ export async function loginWithTelegram(params: {
         telegramId: tgId,
         name: displayName(identity, `User ${tgId}`),
         username: taken ? `tg_${tgId}` : preferred,
-        avatarUrl: identity.photo_url,
         city: params.city || "Ташкент",
         deviceFingerprint: params.deviceFingerprint,
         lastIp: params.ip,
@@ -257,7 +256,6 @@ export async function loginWithTelegram(params: {
     user = await prisma.user.update({
       where: { id: user.id },
       data: {
-        avatarUrl: identity.photo_url || user.avatarUrl,
         deviceFingerprint: params.deviceFingerprint || user.deviceFingerprint,
         lastIp: params.ip || user.lastIp,
         telegramAuthDate: new Date(),
@@ -267,6 +265,18 @@ export async function loginWithTelegram(params: {
 
   if (user.status === "BLOCKED") {
     throw Object.assign(new Error("Аккаунт заблокирован"), { status: 403 });
+  }
+
+  // Avatar = Telegram profile photo. First login waits (bounded) so the
+  // profile opens with the photo; later logins refresh it in the background.
+  const avatarSync = syncTelegramAvatar({
+    userId: user.id,
+    telegramId: tgId,
+    photoUrl: identity.photo_url,
+  });
+  if (!user.avatarUrl) {
+    await Promise.race([avatarSync, new Promise((r) => setTimeout(r, 6000))]);
+    user = (await prisma.user.findUnique({ where: { id: user.id } })) ?? user;
   }
 
   const token = await createSession(user.id);

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { Link, useNavigate } from "react-router-dom";
+import { CheckCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { dateLocale } from "@/lib/labels";
 
 type N = {
   id: string;
@@ -16,6 +19,7 @@ type N = {
 export default function NotificationsPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<N[]>([]);
 
   useEffect(() => {
@@ -36,26 +40,27 @@ export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 animate-rise">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl text-forest">Уведомления</h1>
+        <h1 className="font-display text-3xl text-forest">{t("pages.notifications.title")}</h1>
         <button
-          type="button"
-          className="text-sm text-coral"
-          onClick={async () => {
-            await api("/api/notifications", {
-              method: "POST",
-              body: JSON.stringify({}),
-            });
-            await load();
-          }}
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-green-400/10 p-2.5 text-sm font-medium text-green-900 transition hover:bg-green-900/15 active:scale-[0.97] sm:px-4 sm:py-2"
+            onClick={async () => {
+              await api("/api/notifications", {
+                method: "POST",
+                body: JSON.stringify({}),
+              });
+              await load();
+            }}
+            aria-label={t("pages.notifications.markAll")}
         >
-          Отметить все прочитанными
+          <CheckCheck className="h-4 w-4 sm:hidden" strokeWidth={2} />
+          <span className="hidden sm:inline">{t("pages.notifications.markAll")}</span>
         </button>
       </div>
 
       {items.length === 0 ? (
         <p className="rounded-2xl bg-white/60 p-8 text-center text-ink/60">
-          Пока тихо. Когда придёт предложение или напоминание о встрече — оно
-          появится здесь.
+          {t("pages.notifications.empty")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -73,7 +78,7 @@ export default function NotificationsPage() {
                   <p className="font-medium">{n.title}</p>
                   <p className="text-ink/65">{n.body}</p>
                   <p className="mt-1 text-[10px] text-ink/40">
-                    {new Date(n.createdAt).toLocaleString("ru-RU")} · {n.type}
+                    {new Date(n.createdAt).toLocaleString(dateLocale())} · {n.type}
                   </p>
                 </div>
                 {n.tradeId && (
@@ -81,7 +86,7 @@ export default function NotificationsPage() {
                     to={`/trades/${n.tradeId}`}
                     className="shrink-0 text-xs text-forest underline"
                   >
-                    Открыть
+                    {t("pages.notifications.open")}
                   </Link>
                 )}
               </div>

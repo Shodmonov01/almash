@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
 import {
   calcTrustLevel,
@@ -8,9 +9,12 @@ import {
   randomToken,
   writeAudit,
 } from "@/lib/utils";
-import { computeRiskScore } from "@/lib/antifraud";
+import { refreshUserRisk, SIGNAL_LABELS } from "@/lib/services/risk";
 import { OFFER_TTL_HOURS } from "@/lib/constants";
 import { assertCanTransact, assertRateLimit } from "@/lib/services/rate-limit";
+
+/** Deals at or above this score go to the moderators (TZ §33, §52). */
+const SUSPICIOUS_TRADE_SCORE = 60;
 
 export class TradeError extends Error {
   status: number;
@@ -18,6 +22,12 @@ export class TradeError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function safeEqual(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 export async function loadTradeOrThrow(id: string) {
@@ -47,7 +57,7 @@ export async function createOffer(params: {
   message?: string;
 }) {
   await assertRateLimit(params.userId, "create_offer");
-  const user = await assertCanTransact(params.userId);
+  const { risk: initiatorRisk } = await assertCanTransact(params.userId, "offer");
 
   const offered = await prisma.item.findMany({
     where: {
@@ -84,20 +94,9 @@ export async function createOffer(params: {
   const publicId = nextPublicTradeId(count + 1);
   const expiresAt = new Date(Date.now() + OFFER_TTL_HOURS * 60 * 60 * 1000);
 
-  const listingCount = await prisma.item.count({
-    where: { ownerId: params.userId },
-  });
-  const riskScore = computeRiskScore({
-    isNewAccount: user.completedTrades === 0,
-    manyListings: listingCount > 20,
-    manyCancels: user.cancelledTrades > 5,
-    manyDisputes: user.disputesCount > 3,
-  });
-
-  await prisma.user.update({
-    where: { id: params.userId },
-    data: { riskScoreCached: riskScore },
-  });
+  // TZ §33: deal risk = the riskier of the two parties
+  const recipientRisk = await refreshUserRisk(recipientId);
+  const riskScore = Math.max(initiatorRisk.score, recipientRisk.score);
 
   const trade = await prisma.trade.create({
     data: {
@@ -171,6 +170,20 @@ export async function createOffer(params: {
     action: "OFFER_CREATED",
     meta: { publicId, riskScore },
   });
+  if (riskScore >= SUSPICIOUS_TRADE_SCORE) {
+    await prisma.moderationQueue.create({
+      data: {
+        type: "SUSPICIOUS_TRADE",
+        tradeId: trade.id,
+        userId: params.userId,
+        score: riskScore,
+        detail: [
+          ...initiatorRisk.signals.map((s) => `A: ${SIGNAL_LABELS[s]}`),
+          ...recipientRisk.signals.map((s) => `B: ${SIGNAL_LABELS[s]}`),
+        ].join(", "),
+      },
+    });
+  }
   await notify({
     userId: recipientId,
     tradeId: trade.id,
@@ -214,6 +227,21 @@ export async function counterOffer(params: {
     if (it.ownerId !== trade.recipientId) {
       throw new TradeError("Сторона B: неверные предметы");
     }
+  }
+
+  // Newly added items must be free; items already in this trade stay allowed.
+  const inThisTrade = new Set(
+    trade.items
+      .filter((i) => i.version === trade.currentVersion)
+      .map((i) => i.itemId),
+  );
+  const unavailable = items.filter(
+    (it) => !inThisTrade.has(it.id) && it.status !== "ACTIVE",
+  );
+  if (unavailable.length) {
+    throw new TradeError(
+      `Предметы недоступны для обмена: ${unavailable.map((i) => i.title).join(", ")}`,
+    );
   }
 
   const newVersion = trade.currentVersion + 1;
@@ -333,34 +361,43 @@ export async function confirmHandoff(params: {
     throw new TradeError("Вы уже подтвердили");
   }
 
-  // Opponent's code is what you enter; QR is shared deal token (one-time)
+  // You confirm with the OTHER party's one-time code: typed in, or scanned from
+  // the QR on their screen (payload "SWAPTOY:<publicId>:<code>"). Your own
+  // screen never holds a token that could confirm your side on its own.
   const expectedCode = side === "A" ? trade.confirmCodeB : trade.confirmCodeA;
   const codeFieldUsed = side === "A" ? trade.codeBUsedAt : trade.codeAUsedAt;
 
-  let validCode = false;
-  let validQr = false;
-
-  if (params.code) {
-    if (codeFieldUsed) throw new TradeError("Этот код уже был использован");
-    validCode = params.code === expectedCode;
-  }
+  let submitted = params.code?.trim();
+  let via: "code" | "qr" = "code";
   if (params.qrToken) {
-    if (trade.qrUsedAt) throw new TradeError("QR уже был использован");
-    validQr = params.qrToken === trade.qrToken;
+    const m = /^SWAPTOY:([^:]+):(\d+)$/.exec(params.qrToken.trim());
+    if (!m || m[1] !== trade.publicId) {
+      throw new TradeError("Этот QR не относится к данной сделке");
+    }
+    submitted = m[2];
+    via = "qr";
   }
+  if (!submitted) throw new TradeError("Введите код или отсканируйте QR");
+  if (codeFieldUsed) throw new TradeError("Этот код уже был использован");
 
-  if (!validCode && !validQr) {
+  // Throttle guessing of the 4-digit code
+  await assertRateLimit(params.userId, "handoff_code");
+  if (!expectedCode || !safeEqual(submitted, expectedCode)) {
+    await writeAudit({
+      userId: params.userId,
+      tradeId: trade.id,
+      action: "HANDOFF_CODE_INVALID",
+      meta: { side, via },
+    });
     throw new TradeError("Неверный код или QR сделки");
   }
 
   const now = new Date();
   const data: Record<string, unknown> = {};
 
-  if (validCode) {
-    if (side === "A") data.codeBUsedAt = now;
-    else data.codeAUsedAt = now;
-  }
-  if (validQr) data.qrUsedAt = now;
+  if (side === "A") data.codeBUsedAt = now;
+  else data.codeAUsedAt = now;
+  if (via === "qr") data.qrUsedAt = now;
 
   if (side === "A") data.partyAConfirmedAt = now;
   else data.partyBConfirmedAt = now;
@@ -379,7 +416,7 @@ export async function confirmHandoff(params: {
     userId: params.userId,
     tradeId: trade.id,
     action: "HANDOFF_CONFIRMED",
-    meta: { side, via: validQr ? "qr" : "code" },
+    meta: { side, via },
   });
   await prisma.message.create({
     data: {
@@ -392,6 +429,15 @@ export async function confirmHandoff(params: {
 
   if (otherConfirmed) {
     await completeTrade(trade.id);
+  } else {
+    // TZ §17: the other side must confirm too — tell them right away
+    await notify({
+      userId: side === "A" ? trade.recipientId : trade.initiatorId,
+      tradeId: trade.id,
+      type: "HANDOFF_CONFIRMED",
+      title: "Партнёр подтвердил получение",
+      body: `${trade.publicId}: подтвердите и вы — обмен завершится после подтверждения обеих сторон.`,
+    });
   }
 
   return loadTradeOrThrow(trade.id);
@@ -460,8 +506,8 @@ export async function cancelTrade(params: {
   if (!trade) return;
 
   const currentIds = trade.items
-    .filter((i) => i.version === trade.currentVersion)
-    .map((i) => i.itemId);
+      .filter((i) => i.version === trade.currentVersion)
+      .map((i) => i.itemId);
 
   await prisma.trade.update({
     where: { id: params.tradeId },
@@ -497,5 +543,15 @@ export async function cancelTrade(params: {
     tradeId: params.tradeId,
     action: "TRADE_CANCELLED",
     meta: { reason: params.reason },
+  });
+
+  const otherId =
+      params.userId === trade.initiatorId ? trade.recipientId : trade.initiatorId;
+  await notify({
+    userId: otherId,
+    tradeId: params.tradeId,
+    type: "TRADE_CANCELLED",
+    title: "Сделка отменена",
+    body: `${trade.publicId}: ${params.reason}`,
   });
 }
