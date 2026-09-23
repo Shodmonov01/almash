@@ -17,5 +17,12 @@ npx prisma db push
 cd "$ROOT"
 /usr/local/bin/pm2 startOrReload ecosystem.config.cjs --env production --update-env
 /usr/local/bin/pm2 save
-curl --fail --silent --show-error http://127.0.0.1:4105/api/health
-printf '\nDeployment completed.\n'
+for attempt in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:4105/api/health 2>/dev/null; then
+    printf '\nDeployment completed.\n'
+    exit 0
+  fi
+  sleep 1
+done
+echo "Application health check failed after 30 seconds." >&2
+exit 1
