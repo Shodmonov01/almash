@@ -18,7 +18,7 @@ almash/
 - npm 10+
 - Git
 
-База — SQLite внутри `backend/`. PostgreSQL не нужен.
+База — PostgreSQL. SQLite-файлы не используются.
 
 ## Запуск локально
 
@@ -82,11 +82,11 @@ http://localhost:5173/login
 
 Оба канала — одно приложение и одни аккаунты. Настройка бота — в [backend/README.md](./backend/README.md).
 
-## Автодеплой (ветка `main`)
+## Автодеплой (GitHub Actions, ветка `main`)
 
-Cron на VPS тянет `origin/main`, собирает фронт и бэк **отдельно**, копирует `frontend/dist` → `backend/public` и поднимает API на `:8081`. GitHub Secrets не нужны. Сиды не запускаются.
+Workflow `.github/workflows/deploy.yml` запускает деплой при push в `main`. В GitHub Actions repository secrets нужен `ALMASH_DEPLOY_SSH_KEY` — отдельный приватный ключ пользователя `almash` на VPS. На сервере проект находится в `/opt/almash`, API доступен Nginx только на localhost. Сиды не запускаются.
 
-`npm run db:reset` на сервере не запускайте: стирает базу.
+`npm run db:reset` на сервере не запускайте: стирает данные.
 
 ## Принцип «без денег»
 
