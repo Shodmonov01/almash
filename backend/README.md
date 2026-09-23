@@ -1,6 +1,6 @@
 # Retoy API
 
-Fastify + Prisma + SQLite. Не зависит от фронтенда: свой `package.json`, свой `.env`, свой `node_modules`.
+Fastify + Prisma + PostgreSQL. Не зависит от фронтенда: свой `package.json`, свой `.env`, свой `node_modules`.
 
 ## Запуск
 
@@ -16,7 +16,7 @@ npm run dev
 - Health: http://localhost:3001/api/health
 - Загрузки: http://localhost:3001/uploads/...
 
-`db:reset` полностью пересоздаёт SQLite и заливает демо. **Локальные данные будут стёрты.**
+`db:reset` полностью пересоздаёт схему и заливает демо. **Локальные данные будут стёрты.**
 
 Демо-логины: `aliya`, `bobur`, `dilnoza`, `admin` — пароль `demo1234`.
 
@@ -25,7 +25,7 @@ npm run dev
 Файл `.env` (из `.env.example`):
 
 ```
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://user:password@localhost:5432/almash?schema=public"
 JWT_SECRET="change-me"
 SESSION_COOKIE="toyswap_session"
 PORT=3001
@@ -37,6 +37,8 @@ COOKIE_SECURE="false"
 `COOKIE_SECURE=true` только за HTTPS. Локально оставляйте `false`.
 
 Опционально `FRONTEND_DIST` — абсолютный путь к собранному SPA. Если не задан, бэкенд отдаёт `backend/public/index.html`, если файл есть. Иначе работает как чистый API.
+
+Для production укажите отдельную базу PostgreSQL в `DATABASE_URL`. На сервере запускается только `prisma db push`; seed не запускается, чтобы не создавать публичные demo-аккаунты.
 
 ## Команды
 
