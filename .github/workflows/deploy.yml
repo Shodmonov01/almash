@@ -1,0 +1,44 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: almash-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.ALMASH_DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: 130.49.170.86
+          DEPLOY_USER: almash
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::notice::Skipping deployment until ALMASH_DEPLOY_SSH_KEY is added to repository secrets."
+            exit 0
+          fi
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          cat > "$HOME/.ssh/known_hosts" <<'EOF'
+          130.49.170.86 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKj8+PI3nzJZQAs8tGr4tUtOYPWNdUB3pxYmcJByMw9t
+          EOF
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+          ssh -i "$HOME/.ssh/id_ed25519" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "bash /opt/almash/scripts/deploy.sh"
