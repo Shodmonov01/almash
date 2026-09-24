@@ -1,9 +1,8 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import { api } from "@/lib/client";
 import { FancySelect } from "@/components/FancySelect";
-import { useFeedback } from "@/components/Feedback";
 import { REPORT_REASONS } from "@/lib/constants";
 import { useTranslation } from "react-i18next";
 import { useLabels } from "@/lib/labels";
@@ -29,7 +28,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
   const labels = useLabels();
-  const { toast } = useFeedback();
+  const [sentOpen, setSentOpen] = useState(false);
 
   // While open: lock the page behind the sheet, close on Escape
   useEffect(() => {
@@ -62,7 +61,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
       });
       setDone(true);
       setOpen(false);
-      toast.success(t("report.sent"));
+      setSentOpen(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {
@@ -70,8 +69,43 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
     }
   }
 
+  // "Sent" confirmation: centred card that closes by itself (or on tap)
+  useEffect(() => {
+    if (!sentOpen) return;
+    const timer = window.setTimeout(() => setSentOpen(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, [sentOpen]);
+
+  const sentModal =
+    sentOpen &&
+    createPortal(
+      <div
+        className="fixed inset-0 z-[70] grid place-items-center bg-ink/40 p-6 backdrop-blur-[2px]"
+        onClick={(e) => {
+          swallow(e);
+          setSentOpen(false);
+        }}
+      >
+        <div
+          role="status"
+          className="flex w-full max-w-[17rem] animate-bouncein flex-col items-center gap-3 rounded-[1.75rem] bg-white px-6 py-7 text-center shadow-2xl"
+        >
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-forest/15 text-forest">
+            <CheckCircle2 size={36} strokeWidth={2.2} />
+          </span>
+          <p className="text-base font-extrabold leading-snug text-ink">{t("report.sent")}</p>
+        </div>
+      </div>,
+      document.body,
+    );
+
   if (done) {
-    return <p className="text-xs text-forest">{t("report.sent")}</p>;
+    return (
+      <>
+        <p className="text-xs text-forest">{t("report.sent")}</p>
+        {sentModal}
+      </>
+    );
   }
 
   return (

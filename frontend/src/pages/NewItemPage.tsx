@@ -6,7 +6,6 @@ import { MAX_VIDEO_MB, uploadMedia, VIDEO_ACCEPT } from "@/lib/media";
 import { CATEGORIES, CONDITIONS } from "@/lib/constants";
 import { useNavigate } from "react-router-dom";
 import { FancySelect } from "@/components/FancySelect";
-import { useFeedback } from "@/components/Feedback";
 import { useTranslation } from "react-i18next";
 import { useLabels } from "@/lib/labels";
 
@@ -44,7 +43,6 @@ export default function NewItemPage() {
   const [wantCats, setWantCats] = useState<string[]>([]);
   const { t } = useTranslation();
   const labels = useLabels();
-  const { toast } = useFeedback();
   const [uploaded, setUploaded] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
@@ -207,7 +205,6 @@ export default function NewItemPage() {
           videoUrl: videoUrl || undefined,
         }),
       });
-      toast.success(t("toast.itemPublished"));
       navigate(`/items/${data.item.id}`);
     } catch (err) {
       // Zod issues from the API name the field: show them in place instead of "invalid data".

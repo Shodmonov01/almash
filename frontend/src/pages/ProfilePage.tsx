@@ -94,7 +94,7 @@ export default function ProfilePage() {
   const { user, loading, logout, refresh } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { toast, confirm } = useFeedback();
+  const { confirm } = useFeedback();
   const [items, setItems] = useState<(ItemCardData & { status?: string })[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [listingErr, setListingErr] = useState("");
@@ -179,7 +179,6 @@ export default function ProfilePage() {
                   form.append("file", file);
                   await api("/api/me/avatar", { method: "POST", body: form });
                   await refresh();
-                  toast.success(t("toast.avatarUpdated"));
                 } catch (err) {
                   setAvatarErr(err instanceof Error ? err.message : t("common.error"));
                 } finally {
@@ -302,7 +301,6 @@ export default function ProfilePage() {
                       setSelectedSetItemIds([]);
                       setIsCreatingSet(false);
                       loadSets();
-                      toast.success(t("toast.setCreated"));
                     } catch (err) {
                       setItemSetError(
                           err instanceof Error ? err.message : t("profile.sets.createError"),
@@ -404,6 +402,10 @@ export default function ProfilePage() {
               </form>
           )}
 
+          {!isCreatingSet && itemSetError && (
+              <p className="rounded-xl bg-coral/10 px-3 py-2 text-xs font-semibold text-coral">{itemSetError}</p>
+          )}
+
           {sets.length === 0 ? (
               !isCreatingSet && (
                   <p className="rounded-2xl bg-cream/60 px-4 py-6 text-center text-xs font-semibold text-ink/50">
@@ -435,9 +437,8 @@ export default function ProfilePage() {
                               try {
                                 await api(`/api/sets?id=${s.id}`, { method: "DELETE" });
                                 loadSets();
-                                toast.success(t("toast.setDeleted"));
                               } catch (e) {
-                                toast.error(e instanceof Error ? e.message : t("common.error"));
+                                setItemSetError(e instanceof Error ? e.message : t("common.error"));
                               }
                             }}
                             className="-mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink/35 transition hover:bg-coral/10 hover:text-coral"
@@ -503,7 +504,6 @@ export default function ProfilePage() {
                                 await api(`/api/items/${item.id}`, { method: "DELETE" });
                                 setItems((prev) => prev.filter((i) => i.id !== item.id));
                                 loadSets();
-                                toast.success(t("toast.itemDeleted"));
                               } catch (e) {
                                 setListingErr(e instanceof Error ? e.message : t("common.error"));
                               } finally {

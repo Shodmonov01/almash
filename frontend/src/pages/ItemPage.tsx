@@ -5,7 +5,6 @@ import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
 import { ReportButton } from "@/components/ReportButton";
-import { useFeedback } from "@/components/Feedback";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLabels } from "@/lib/labels";
@@ -62,7 +61,6 @@ export default function ItemPage() {
   const [activePhoto, setActivePhoto] = useState(0);
   const { t } = useTranslation();
   const labels = useLabels();
-  const { toast } = useFeedback();
 
   useEffect(() => {
     setActivePhoto(0);
@@ -114,7 +112,6 @@ export default function ItemPage() {
       body: JSON.stringify({ itemId: item!.id }),
     });
     setItem({ ...item!, favorited: d.favorited });
-    toast.success(t(d.favorited ? "toast.favAdded" : "toast.favRemoved"));
   }
 
   async function sendOffer() {
@@ -134,7 +131,6 @@ export default function ItemPage() {
           message: message || undefined,
         }),
       });
-      toast.success(t("toast.offerSent"));
       navigate(`/trades/${d.trade.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));

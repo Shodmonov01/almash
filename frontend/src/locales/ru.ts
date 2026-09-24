@@ -102,14 +102,6 @@ const ru = {
     },
   },
   toast: {
-    itemPublished: "Объявление опубликовано",
-    itemDeleted: "Объявление удалено",
-    offerSent: "Предложение отправлено",
-    setCreated: "Набор создан",
-    setDeleted: "Набор удалён",
-    avatarUpdated: "Фото профиля обновлено",
-    favAdded: "Добавлено в избранное",
-    favRemoved: "Убрано из избранного",
     deleteItemTitle: "Удалить объявление?",
     deleteSetTitle: "Удалить набор?",
   },
@@ -118,7 +110,6 @@ const ru = {
     showPassword: "Показать пароль",
     hidePassword: "Скрыть пароль",
     cancel: "Отмена",
-    close: "Закрыть",
     delete: "Удалить",
   },
   pages: {

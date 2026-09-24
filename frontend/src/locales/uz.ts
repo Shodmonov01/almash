@@ -98,14 +98,6 @@ const uz = {
     },
   },
   toast: {
-    itemPublished: "E'lon joylandi",
-    itemDeleted: "E'lon o'chirildi",
-    offerSent: "Taklif yuborildi",
-    setCreated: "To'plam yaratildi",
-    setDeleted: "To'plam o'chirildi",
-    avatarUpdated: "Profil rasmi yangilandi",
-    favAdded: "Sevimlilarga qo'shildi",
-    favRemoved: "Sevimlilardan olib tashlandi",
     deleteItemTitle: "E'lon o'chirilsinmi?",
     deleteSetTitle: "To'plam o'chirilsinmi?",
   },
@@ -114,7 +106,6 @@ const uz = {
     showPassword: "Parolni ko‘rsatish",
     hidePassword: "Parolni yashirish",
     cancel: "Bekor qilish",
-    close: "Yopish",
     delete: "O‘chirish",
   },
   pages: {
