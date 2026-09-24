@@ -5,7 +5,6 @@ import { mediaUrl } from "@/lib/env";
 import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { useTranslation } from "react-i18next";
 import { LanguageList } from "@/components/LanguageSwitcher";
-import { PasswordInput } from "@/components/PasswordInput";
 import { useFeedback } from "@/components/Feedback";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -26,11 +25,6 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import {
-  getTelegramInitData,
-  isTelegramMiniApp,
-  requestTelegramWidgetAuth,
-} from "@/lib/telegram";
 
 function SettingsGroup({
   title,
@@ -97,7 +91,7 @@ function SettingsRow({
 }
 
 export default function ProfilePage() {
-  const { user, loading, logout, refresh, loginTelegram, telegram } = useAuth();
+  const { user, loading, logout, refresh } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { toast, confirm } = useFeedback();
@@ -118,11 +112,6 @@ export default function ProfilePage() {
   const [selectedSetItemIds, setSelectedSetItemIds] = useState<string[]>([]);
   const [itemSetBusy, setItemSetBusy] = useState(false);
   const [itemSetError, setItemSetError] = useState("");
-  const [password, setPassword] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [securityMsg, setSecurityMsg] = useState("");
-  const [securityErr, setSecurityErr] = useState("");
-  const [busy, setBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarErr, setAvatarErr] = useState("");
@@ -260,106 +249,6 @@ export default function ProfilePage() {
             />
           </SettingsGroup>
         </div>
-
-        <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="font-display text-2xl text-forest">{t("profile.security.title")}</h2>
-          <p className="text-sm font-semibold text-ink/60">
-            {t("profile.security.status", {
-              telegram: t(user.telegramLinked ? "profile.security.tgLinked" : "profile.security.tgNotLinked"),
-              password: t(user.hasPassword ? "profile.security.pwSet" : "profile.security.pwNotSet"),
-            })}
-          </p>
-
-          {securityErr && (
-              <p className="text-sm font-semibold text-coral">{securityErr}</p>
-          )}
-          {securityMsg && (
-              <p className="text-sm font-semibold text-forest">{securityMsg}</p>
-          )}
-          <form
-              className="grid gap-3 sm:grid-cols-2"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setBusy(true);
-                setSecurityErr("");
-                setSecurityMsg("");
-                try {
-                  await api("/api/me", {
-                    method: "PATCH",
-                    body: JSON.stringify({
-                      password,
-                      ...(user.hasPassword ? { currentPassword } : {}),
-                    }),
-                  });
-                  setPassword("");
-                  setCurrentPassword("");
-                  setSecurityMsg(t("profile.security.saved"));
-                  await refresh();
-                } catch (e) {
-                  setSecurityErr(e instanceof Error ? e.message : t("common.error"));
-                } finally {
-                  setBusy(false);
-                }
-              }}
-          >
-            {user.hasPassword && (
-                <PasswordInput
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder={t("profile.security.current")}
-                    autoComplete="current-password"
-                    className="rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold"
-                />
-            )}
-            <PasswordInput
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t(user.hasPassword ? "profile.security.new" : "profile.security.set")}
-                minLength={8}
-                required
-                autoComplete="new-password"
-                className="rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold"
-            />
-            <button
-                type="submit"
-                disabled={busy}
-                className="rounded-full bg-ink px-4 py-3 text-sm font-extrabold text-cream disabled:opacity-60 sm:col-span-2"
-            >
-              {t(user.hasPassword ? "profile.security.change" : "profile.security.save")}
-            </button>
-          </form>
-          {!user.telegramLinked && (
-              <button
-                  type="button"
-                  disabled={busy || (!isTelegramMiniApp() && !telegram.botId)}
-                  onClick={async () => {
-                    setBusy(true);
-                    setSecurityErr("");
-                    setSecurityMsg("");
-                    try {
-                      const initData = getTelegramInitData();
-                      if (initData) {
-                        await loginTelegram({ initData });
-                      } else if (telegram.botId) {
-                        const widget = await requestTelegramWidgetAuth(telegram.botId);
-                        await loginTelegram({ telegramWidget: widget });
-                      } else {
-                        throw new Error(t("profile.security.botNotConfigured"));
-                      }
-                      setSecurityMsg(t("profile.security.tgLinkedOk"));
-                      await refresh();
-                    } catch (e) {
-                      setSecurityErr(e instanceof Error ? e.message : t("common.error"));
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  className="w-full rounded-full bg-[#2AABEE] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50"
-              >
-                {t("profile.security.linkTelegram")}
-              </button>
-          )}
-        </section>
 
         {/* Мои наборы (ItemSets - TZ п. 8) */}
         <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-5">
