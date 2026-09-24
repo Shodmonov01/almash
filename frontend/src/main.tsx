@@ -11,3 +11,10 @@ createRoot(document.getElementById("root")!).render(
         </BrowserRouter>
     </StrictMode>,
 );
+
+// The bundle loaded fine: allow index.html's one-time stale-asset reload again.
+try {
+    sessionStorage.removeItem("asset-reload");
+} catch {
+    // storage blocked — nothing to reset
+}

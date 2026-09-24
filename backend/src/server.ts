@@ -180,8 +180,11 @@ async function main() {
     });
     app.setNotFoundHandler((req, reply) => {
       const url = req.url.split("?")[0];
-      if (url.startsWith("/api") || url.startsWith("/uploads")) {
-        return reply.code(404).send({ error: "Не найдено" });
+      // A missing build file (old page asking for an asset a deploy removed)
+      // must 404: answering with index.html made the browser run HTML as JS
+      // and the Mini App stayed white.
+      if (url.startsWith("/api") || url.startsWith("/uploads") || url.startsWith("/assets/")) {
+        return reply.code(404).header("Cache-Control", NO_CACHE).send({ error: "Не найдено" });
       }
       return reply
         .header("Cache-Control", NO_CACHE)
