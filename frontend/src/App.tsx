@@ -3,6 +3,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { FeedbackProvider } from "@/components/Feedback";
 import { OnboardingGate } from "@/components/OnboardingGate";
 import { AppShell } from "@/components/AppShell";
+import { ScrollManager } from "@/components/ScrollManager";
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import BrowsePage from "@/pages/BrowsePage";
@@ -24,6 +25,7 @@ export default function App() {
       <AuthProvider>
         <OnboardingGate>
           <AppShell>
+            <ScrollManager />
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
