@@ -160,33 +160,18 @@ async function main() {
   app.post("/api/upload-video", wrap(uploadVideo.POST));
 
   if (serveFrontend) {
-    // index.html must never be cached (Telegram's WebView holds it for days,
-    // so users kept an old build after deploys); Vite's hashed assets can be.
-    const NO_CACHE = "no-cache, no-store, must-revalidate";
     await app.register(fastifyStatic, {
       root: publicDir,
       prefix: "/",
       wildcard: false,
       decorateReply: false,
-      cacheControl: false,
-      setHeaders: (res, filePath) => {
-        res.setHeader(
-          "Cache-Control",
-          filePath.includes(`${path.sep}assets${path.sep}`)
-            ? "public, max-age=31536000, immutable"
-            : NO_CACHE,
-        );
-      },
     });
     app.setNotFoundHandler((req, reply) => {
       const url = req.url.split("?")[0];
       if (url.startsWith("/api") || url.startsWith("/uploads")) {
         return reply.code(404).send({ error: "Не найдено" });
       }
-      return reply
-        .header("Cache-Control", NO_CACHE)
-        .type("text/html")
-        .send(fs.readFileSync(frontendIndex));
+      return reply.type("text/html").send(fs.readFileSync(frontendIndex));
     });
   }
 
