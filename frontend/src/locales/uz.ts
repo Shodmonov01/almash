@@ -114,6 +114,7 @@ const uz = {
     showPassword: "Parolni ko‘rsatish",
     hidePassword: "Parolni yashirish",
     cancel: "Bekor qilish",
+    close: "Yopish",
     delete: "O‘chirish",
   },
   pages: {

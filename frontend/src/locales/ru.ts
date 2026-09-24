@@ -118,6 +118,7 @@ const ru = {
     showPassword: "Показать пароль",
     hidePassword: "Скрыть пароль",
     cancel: "Отмена",
+    close: "Закрыть",
     delete: "Удалить",
   },
   pages: {
