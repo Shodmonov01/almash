@@ -11,6 +11,19 @@ import { useLabels } from "@/lib/labels";
 
 const ALL_SUBCATEGORIES = Object.values(CATEGORIES).flat();
 
+/** Validated fields, in the order they appear in the form. */
+const FIELD_ORDER = ["title", "description", "ageFrom", "ageTo", "city", "photos", "defectsConfirmed"] as const;
+type FieldKey = (typeof FIELD_ORDER)[number];
+type FieldErrors = Partial<Record<FieldKey, string>>;
+
+const INPUT_OK = "border-forest/15 bg-cream/40 focus:border-forest/40 focus:ring-forest/15";
+const INPUT_BAD = "border-coral bg-coral/5 focus:border-coral focus:ring-coral/20";
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <span className="block text-xs font-semibold text-coral">{message}</span>;
+}
+
 // Same look as the text fields of this form
 const FIELD_TRIGGER =
   "border-forest/15 bg-cream/40 hover:border-forest/30 focus:border-forest/40 focus:bg-white focus:ring-forest/15";
@@ -19,6 +32,7 @@ export default function NewItemPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState("Игрушки");
   const [subcategory, setSubcategory] = useState(CATEGORIES["Игрушки"]?.[0] ?? "");
@@ -39,6 +53,16 @@ export default function NewItemPage() {
     navigate("/login", { replace: true });
   }
 
+  function clearFieldError(key: string) {
+    setFieldErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key as FieldKey];
+      if (Object.keys(next).length === 0) setError("");
+      return next;
+    });
+  }
+
   async function onUpload(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
@@ -54,6 +78,7 @@ export default function NewItemPage() {
           body: fd,
         });
         setUploaded((u) => [...u, data.url]);
+        clearFieldError("photos");
         if (data.duplicateWarning) {
           setError(t("newItem.duplicatePhotos"));
         }
@@ -65,13 +90,77 @@ export default function NewItemPage() {
     }
   }
 
+  /** Short field names for the "fill in: …" summary above the submit button. */
+  const fieldNames: Record<string, string> = {
+    title: t("newItem.name"),
+    description: t("newItem.description"),
+    city: t("newItem.city"),
+    ageFrom: t("newItem.ageFrom"),
+    ageTo: t("newItem.ageTo"),
+    photos: t("newItem.err.photos"),
+    defectsConfirmed: t("newItem.err.defectsShort"),
+  };
+
+  /** Mirrors the backend createSchema so the user learns about every problem at once. */
+  function validate(fd: FormData): FieldErrors {
+    const errs: FieldErrors = {};
+    const str = (key: string) => String(fd.get(key) || "").trim();
+
+    const title = str("title");
+    if (!title) errs.title = t("newItem.err.required");
+    else if (title.length < 3) errs.title = t("newItem.err.titleMin");
+
+    const description = str("description");
+    if (!description) errs.description = t("newItem.err.required");
+    else if (description.length < 10) errs.description = t("newItem.err.descMin", { count: description.length });
+
+    for (const key of ["ageFrom", "ageTo"] as const) {
+      const v = str(key);
+      if (v && !(Number.isInteger(Number(v)) && Number(v) >= 0 && Number(v) <= 18)) errs[key] = t("newItem.err.age");
+    }
+    if (!errs.ageFrom && !errs.ageTo && str("ageFrom") && str("ageTo") && Number(str("ageFrom")) > Number(str("ageTo"))) {
+      errs.ageTo = t("newItem.ageOrder");
+    }
+
+    if (!str("city")) errs.city = t("newItem.err.required");
+
+    if (uploaded.length < 2) errs.photos = t("newItem.err.photosMin", { count: uploaded.length });
+    else if (uploaded.length > 10) errs.photos = t("newItem.err.photosMax", { count: uploaded.length });
+
+    if (fd.get("defectsConfirmed") !== "on") errs.defectsConfirmed = t("newItem.err.defects");
+    return errs;
+  }
+
+  /** Scroll the first broken field into view (form order) and focus it. */
+  function revealFirst(errs: FieldErrors) {
+    const first = FIELD_ORDER.find((k) => errs[k]);
+    if (!first) return;
+    const box = document.querySelector<HTMLElement>(`[data-field="${first}"]`);
+    box?.scrollIntoView({ behavior: "smooth", block: "center" });
+    box?.querySelector<HTMLElement>("input:not([type=file]), textarea")?.focus({ preventScroll: true });
+  }
+
+  function showErrors(errs: FieldErrors) {
+    setFieldErrors(errs);
+    const names = FIELD_ORDER.filter((k) => errs[k]).map((k) => fieldNames[k]);
+    setError(t("newItem.err.summary", { fields: names.join(", ") }));
+    revealFirst(errs);
+  }
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!user) return;
-    setBusy(true);
     setError("");
     const fd = new FormData(e.currentTarget);
     const photos = uploaded;
+
+    const errs = validate(fd);
+    if (Object.keys(errs).length > 0) {
+      showErrors(errs);
+      return;
+    }
+    setFieldErrors({});
+    setBusy(true);
 
     const list = (key: string) =>
         String(fd.get(key) || "")
@@ -85,17 +174,6 @@ export default function NewItemPage() {
     };
     const ageFrom = num("ageFrom");
     const ageTo = num("ageTo");
-    if (ageFrom != null && ageTo != null && ageFrom > ageTo) {
-      setError(t("newItem.ageOrder"));
-      setBusy(false);
-      return;
-    }
-
-    if (photos.length < 2) {
-      setError(t("newItem.minPhotos"));
-      setBusy(false);
-      return;
-    }
 
     try {
       const data = await api<{ item: { id: string } }>("/api/items", {
@@ -129,7 +207,15 @@ export default function NewItemPage() {
       });
       navigate(`/items/${data.item.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("common.error"));
+      // Zod issues from the API name the field: show them in place instead of "invalid data".
+      const issues = (err as { data?: { issues?: { path?: (string | number)[] }[] } }).data?.issues;
+      const serverErrs: FieldErrors = {};
+      for (const issue of issues ?? []) {
+        const key = String(issue.path?.[0] ?? "") as FieldKey;
+        if (FIELD_ORDER.includes(key) && !serverErrs[key]) serverErrs[key] = t("newItem.err.server");
+      }
+      if (Object.keys(serverErrs).length > 0) showErrors(serverErrs);
+      else setError(err instanceof Error ? err.message : t("common.error"));
     } finally {
       setBusy(false);
     }
@@ -144,29 +230,29 @@ export default function NewItemPage() {
           </p>
         </div>
 
-        {error && (
-            <p className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral ring-1 ring-coral/20">
-              {error}
-            </p>
-        )}
-
         <form
+            noValidate
             onSubmit={onSubmit}
+            onChange={(e) => clearFieldError((e.target as unknown as HTMLInputElement).name)}
             className="space-y-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-forest/10 sm:p-8"
         >
           {/* Основная информация */}
           <div className="space-y-4">
             <SectionTitle>{t("newItem.sectionMain")}</SectionTitle>
-            <Field label={t("newItem.name")} name="title" required />
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium text-ink/80">{t("newItem.description")}</span>
+            <Field label={t("newItem.name")} name="title" required error={fieldErrors.title} />
+            <label data-field="description" className="block space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">
+                {t("newItem.description")} <span className="text-coral">*</span>
+              </span>
               <textarea
                   name="description"
-                  required
-                  minLength={10}
                   rows={4}
-                  className="w-full rounded-2xl border border-forest/15 bg-cream/40 px-4 py-3 text-sm text-ink outline-none transition focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm text-ink outline-none transition focus:bg-white focus:ring-2 ${
+                    fieldErrors.description ? INPUT_BAD : INPUT_OK
+                  }`}
               />
+              <FieldError message={fieldErrors.description} />
             </label>
           </div>
 
@@ -204,8 +290,8 @@ export default function NewItemPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={t("newItem.ageFrom")} name="ageFrom" type="number" min={0} max={18} />
-              <Field label={t("newItem.ageTo")} name="ageTo" type="number" min={0} max={18} />
+              <Field label={t("newItem.ageFrom")} name="ageFrom" type="number" min={0} max={18} error={fieldErrors.ageFrom} />
+              <Field label={t("newItem.ageTo")} name="ageTo" type="number" min={0} max={18} error={fieldErrors.ageTo} />
             </div>
 
             <label className="block space-y-1.5 text-sm">
@@ -257,7 +343,7 @@ export default function NewItemPage() {
           <div className="space-y-4">
             <SectionTitle>{t("newItem.sectionLocation")}</SectionTitle>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={t("newItem.city")} name="city" defaultValue={user?.city} required />
+              <Field label={t("newItem.city")} name="city" defaultValue={user?.city} required error={fieldErrors.city} />
               <Field label={t("newItem.district")} name="district" />
             </div>
           </div>
@@ -324,12 +410,18 @@ export default function NewItemPage() {
           {/* Фото */}
           <div className="space-y-3">
             <SectionTitle>{t("newItem.sectionPhotos")}</SectionTitle>
-            <label className="block space-y-3 text-sm">
+            <label data-field="photos" className="block space-y-3 text-sm">
             <span className="font-medium text-ink/80">
-              {t("newItem.photosLabel")}
+              {t("newItem.photosLabel")} <span className="text-coral">*</span>
             </span>
 
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-forest/20 bg-cream/40 px-4 py-6 text-center transition hover:border-forest/40 hover:bg-cream/60">
+              <label
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition ${
+                    fieldErrors.photos
+                      ? "border-coral bg-coral/5"
+                      : "border-forest/20 bg-cream/40 hover:border-forest/40 hover:bg-cream/60"
+                  }`}
+              >
               <span className="text-sm font-semibold text-forest">
                 {uploading ? t("newItem.uploading") : t("newItem.pickPhotos")}
               </span>
@@ -357,6 +449,7 @@ export default function NewItemPage() {
                   </div>
               )}
 
+              <FieldError message={fieldErrors.photos} />
               <span className="block text-xs text-ink/45">
               {t("newItem.photoHint")}
             </span>
@@ -411,17 +504,30 @@ export default function NewItemPage() {
             </div>
           </div>
 
-          <label className="flex items-start gap-3 rounded-2xl bg-mist/50 p-4 text-sm">
-            <input
-                type="checkbox"
-                name="defectsConfirmed"
-                required
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-forest/30 text-forest focus:ring-forest/30"
-            />
-            <span className="text-ink/75">
-            {t("newItem.defectsConfirm")}
-          </span>
-          </label>
+          <div data-field="defectsConfirmed" className="space-y-1.5">
+            <label
+                className={`flex items-start gap-3 rounded-2xl p-4 text-sm ${
+                  fieldErrors.defectsConfirmed ? "bg-coral/10 ring-1 ring-coral" : "bg-mist/50"
+                }`}
+            >
+              <input
+                  type="checkbox"
+                  name="defectsConfirmed"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-forest/30 text-forest focus:ring-forest/30"
+              />
+              <span className="text-ink/75">
+              {t("newItem.defectsConfirm")}
+            </span>
+            </label>
+            <FieldError message={fieldErrors.defectsConfirmed} />
+          </div>
+
+          {/* Right above the button, so it is seen where the user tapped */}
+          {error && (
+              <p role="alert" className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-semibold text-coral ring-1 ring-coral/20">
+                {error}
+              </p>
+          )}
 
           <button
               type="submit"
@@ -453,6 +559,7 @@ function Field({
                  type = "text",
                  min,
                  max,
+                 error,
                }: {
   label: string;
   name: string;
@@ -462,20 +569,28 @@ function Field({
   type?: string;
   min?: number;
   max?: number;
+  error?: string;
 }) {
   return (
-      <label className="block space-y-1.5 text-sm">
-        <span className="font-medium text-ink/80">{label}</span>
+      <label data-field={name} className="block space-y-1.5 text-sm">
+        <span className="font-medium text-ink/80">
+          {label}
+          {required && <span className="text-coral"> *</span>}
+        </span>
         <input
             name={name}
             type={type}
             min={min}
             max={max}
-            required={required}
+            inputMode={type === "number" ? "numeric" : undefined}
             defaultValue={defaultValue}
             placeholder={placeholder}
-            className="w-full rounded-2xl border border-forest/15 bg-cream/40 px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink/35 focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
+            aria-invalid={Boolean(error)}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink/35 focus:bg-white focus:ring-2 ${
+              error ? INPUT_BAD : INPUT_OK
+            }`}
         />
+        <FieldError message={error} />
       </label>
   );
 }
