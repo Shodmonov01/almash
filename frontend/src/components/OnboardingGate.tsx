@@ -42,8 +42,9 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       {children}
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center sm:p-4">
-        <div className="w-full max-w-md animate-bouncein rounded-t-[2rem] bg-cream p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[2rem] sm:p-6 sm:pb-6">
+      {/* Phone: edge-to-edge bottom sheet (no side/bottom gaps). sm+: centred card. */}
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 pt-[var(--app-inset-top)] sm:items-center sm:p-4">
+        <div className="max-h-full w-full max-w-md animate-bouncein overflow-y-auto overscroll-contain rounded-t-[2rem] bg-cream px-5 pt-5 pb-[max(1.25rem,var(--app-inset-bottom))] shadow-2xl sm:rounded-[2rem] sm:p-6 sm:pb-6">
           <ToyMascot className="mx-auto w-24" mood={step === TIP_COUNT - 1 ? "yay" : "wave"} />
           <p className="text-center text-xs font-extrabold uppercase tracking-wide text-forest">
             {t("onboarding.welcome", { step: step + 1, total: TIP_COUNT })}

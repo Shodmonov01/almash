@@ -99,7 +99,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
               role="dialog"
               aria-modal="true"
               aria-label={t("report.button")}
-              className="flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-md sm:rounded-3xl"
+              className="flex max-h-[calc(100dvh-var(--app-inset-top))] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-md sm:rounded-3xl"
             >
               <div className="flex shrink-0 items-center justify-between border-b border-coral/15 px-5 py-4">
                 <h3 className="font-display text-lg text-coral">{t("report.button")}</h3>
@@ -113,7 +113,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
                 </button>
               </div>
 
-              <div className="space-y-3 overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <div className="space-y-3 overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,var(--app-inset-bottom))]">
                 <FancySelect
                   value={reason}
                   onChange={(v) => setReason(v as typeof reason)}

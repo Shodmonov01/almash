@@ -111,7 +111,6 @@ export type RiskSignals = {
   manyDisputes?: boolean;
   duplicatePhotos?: boolean;
   duplicateDescriptions?: boolean;
-  sharedDevice?: boolean;
   manyReports?: boolean;
   noShows?: boolean;
   burstActivity?: boolean;
@@ -127,7 +126,6 @@ export function computeRiskScore(signals: RiskSignals): number {
   if (signals.manyDisputes) score += 25;
   if (signals.duplicatePhotos) score += 35;
   if (signals.duplicateDescriptions) score += 30;
-  if (signals.sharedDevice) score += 20;
   if (signals.manyReports) score += 25;
   if (signals.noShows) score += 15;
   if (signals.burstActivity) score += 15;

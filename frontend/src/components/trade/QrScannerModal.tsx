@@ -174,7 +174,7 @@ export function QrScannerModal({ isOpen, onClose, onScan }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={t("qr.title")}
-            className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-sm sm:rounded-3xl"
+            className="relative flex max-h-[calc(100dvh-var(--app-inset-top))] w-full flex-col overflow-hidden rounded-t-[2rem] bg-white shadow-2xl sm:max-h-[90dvh] sm:max-w-sm sm:rounded-3xl"
         >
           {/* Header */}
           <div className="flex shrink-0 items-center justify-between border-b border-forest/10 bg-gradient-to-r from-forest to-forest/90 px-5 py-4">
@@ -208,7 +208,7 @@ export function QrScannerModal({ isOpen, onClose, onScan }: Props) {
             </button>
           </div>
 
-          <div className="overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <div className="overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,var(--app-inset-bottom))]">
             {!allowed ? (
                 <div className="flex flex-col items-center gap-3 py-4 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-forest/10 text-forest">

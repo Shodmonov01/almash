@@ -46,10 +46,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const swipeHome = pathname === "/";
+  const hideTabBar = pathname === "/login";
 
   return (
     <div className="flex min-h-[100dvh] flex-col overflow-x-hidden">
-      <header className="sticky top-0 z-40 bg-cream/80 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+      <header className="sticky top-0 z-40 bg-cream/80 pt-[var(--app-inset-top)] backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-3 sm:h-16 sm:px-4">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             {/*<span className="grid h-8 w-8 place-items-center rounded-2xl bg-forest text-sm font-black text-white shadow-[0_6px_0_#1B1828]">*/}
@@ -152,47 +153,52 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main
         className={clsx(
-          "mx-auto w-full flex-1 px-3 pb-[calc(6.25rem+env(safe-area-inset-bottom))] pt-3 sm:px-4 sm:py-6 md:pb-8",
+          "mx-auto w-full flex-1 px-3 pt-3 sm:px-4 sm:py-6 md:pb-8",
+          hideTabBar
+            ? "pb-[max(1.5rem,var(--app-inset-bottom))]"
+            : "pb-[calc(6.25rem+var(--app-inset-bottom))]",
           swipeHome ? "max-w-lg" : "max-w-6xl",
         )}
       >
         {children}
       </main>
 
-      <nav
-        className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
-        aria-label={t("nav.mobileNav")}
-      >
-        <div className="mx-auto grid max-w-md grid-cols-5 rounded-[1.7rem] bg-ink p-1.5 text-cream shadow-[0_12px_40px_rgba(23,21,31,0.28)]">
-          {mobileTabs.map(({ href, label, icon: Icon, emphasize }) => {
-            const active = isActive(pathname, href);
-            return (
-              <Link
-                key={href}
-                to={href}
-                className={clsx(
-                  "relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-bold",
-                  active && !emphasize ? "text-sand" : "text-cream/45",
-                )}
-              >
-                <span
+      {!hideTabBar && (
+        <nav
+          className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,var(--app-inset-bottom))] lg:hidden"
+          aria-label={t("nav.mobileNav")}
+        >
+          <div className="mx-auto grid max-w-md grid-cols-5 rounded-[1.7rem] bg-ink p-1.5 text-cream shadow-[0_12px_40px_rgba(23,21,31,0.28)]">
+            {mobileTabs.map(({ href, label, icon: Icon, emphasize }) => {
+              const active = isActive(pathname, href);
+              return (
+                <Link
+                  key={href}
+                  to={href}
                   className={clsx(
-                    "flex items-center justify-center rounded-2xl transition",
-                    emphasize
-                      ? "h-11 w-11 -translate-y-0.5 bg-sand text-ink shadow-[0_4px_0_#b8d63a]"
-                      : active
-                        ? "h-9 w-9 bg-white/10"
-                        : "h-9 w-9",
+                    "relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10px] font-bold",
+                    active && !emphasize ? "text-sand" : "text-cream/45",
                   )}
                 >
-                  <Icon size={emphasize ? 22 : 20} strokeWidth={active ? 2.6 : 2} />
-                </span>
-                <span className={clsx(emphasize && "text-sand")}>{t(label)}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+                  <span
+                    className={clsx(
+                      "flex items-center justify-center rounded-2xl transition",
+                      emphasize
+                        ? "h-11 w-11 -translate-y-0.5 bg-sand text-ink shadow-[0_4px_0_#b8d63a]"
+                        : active
+                          ? "h-9 w-9 bg-white/10"
+                          : "h-9 w-9",
+                    )}
+                  >
+                    <Icon size={emphasize ? 22 : 20} strokeWidth={active ? 2.6 : 2} />
+                  </span>
+                  <span className={clsx(emphasize && "text-sand")}>{t(label)}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

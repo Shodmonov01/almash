@@ -109,9 +109,6 @@ export default function NewItemPage() {
           model: fd.get("model") || undefined,
           ageFrom,
           ageTo,
-          size: fd.get("size") || undefined,
-          color: fd.get("color") || undefined,
-          serialNumber: fd.get("serialNumber") || undefined,
           tags: list("tags"),
           condition: fd.get("condition"),
           completeness: fd.get("completeness") || undefined,
@@ -211,27 +208,19 @@ export default function NewItemPage() {
               <Field label={t("newItem.ageTo")} name="ageTo" type="number" min={0} max={18} />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label={t("newItem.size")} name="size" placeholder={t("newItem.sizePlaceholder")} />
-              <Field label={t("newItem.color")} name="color" />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block space-y-1.5 text-sm">
-                <span className="font-medium text-ink/80">{t("newItem.original")}</span>
-                <FancySelect
-                    name="isOriginal"
-                    value={isOriginal}
-                    onChange={setIsOriginal}
-                    options={[
-                      { value: "on", label: t("newItem.originalYes") },
-                      { value: "off", label: t("newItem.originalNo") },
-                    ]}
-                    triggerClassName={FIELD_TRIGGER}
-                />
-              </label>
-              <Field label={t("newItem.serial")} name="serialNumber" />
-            </div>
+            <label className="block space-y-1.5 text-sm">
+              <span className="font-medium text-ink/80">{t("newItem.original")}</span>
+              <FancySelect
+                  name="isOriginal"
+                  value={isOriginal}
+                  onChange={setIsOriginal}
+                  options={[
+                    { value: "on", label: t("newItem.originalYes") },
+                    { value: "off", label: t("newItem.originalNo") },
+                  ]}
+                  triggerClassName={FIELD_TRIGGER}
+              />
+            </label>
 
             <Field label={t("newItem.tags")} name="tags" placeholder={t("newItem.tagsPlaceholder")} />
           </div>

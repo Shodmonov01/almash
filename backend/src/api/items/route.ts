@@ -49,7 +49,8 @@ export async function GET(req: AppRequest) {
     if (ownerId) {
       where.ownerId = ownerId;
       delete (where as { status?: unknown }).status;
-      where.status = { notIn: ["BLOCKED"] };
+      // HIDDEN = deleted by the owner (soft delete) or hidden by moderation
+      where.status = { notIn: ["BLOCKED", "HIDDEN"] };
     }
     if (category) where.category = category;
     if (subcategory) where.subcategory = subcategory;

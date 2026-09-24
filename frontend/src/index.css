@@ -14,6 +14,19 @@
   --font-sans: "Nunito", system-ui, sans-serif;
   --background: var(--cream);
   --foreground: var(--ink);
+
+  /* In Telegram fullscreen the "Close" / "⋯" controls float over the page.
+     telegram-web-app.js publishes the device inset (--tg-safe-area-*) and the
+     extra room those controls need (--tg-content-safe-area-*); outside
+     Telegram both are unset and we fall back to the plain device inset. */
+  --app-inset-top: calc(
+    max(env(safe-area-inset-top), var(--tg-safe-area-inset-top, 0px)) +
+      var(--tg-content-safe-area-inset-top, 0px)
+  );
+  --app-inset-bottom: calc(
+    max(env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)) +
+      var(--tg-content-safe-area-inset-bottom, 0px)
+  );
 }
 
 html {
@@ -46,21 +59,14 @@ body {
   letter-spacing: -0.04em;
 }
 
-@layer base {
-  input,
-  select,
-  textarea,
-  button {
-    font-size: 16px;
-  }
-
-  @media (min-width: 640px) {
-    input,
-    select,
-    textarea,
-    button {
-      font-size: inherit;
-    }
+/* iOS Safari / Telegram WebView zooms into any focused field under 16px.
+   Kept outside @layer and !important so utilities like text-sm can't undo it. */
+@media (max-width: 639px) {
+  :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea, [contenteditable="true"]):not(
+      [class*="text-lg"],
+      [class*="text-xl"]
+    ) {
+    font-size: 16px !important;
   }
 }
 
@@ -231,4 +237,13 @@ body {
   50% {
     transform: rotate(3deg);
   }
+}
+
+/* Telegram-like chat backdrop: soft tint with a faint dotted pattern. */
+.chat-wallpaper {
+  background-color: #efeaf9;
+  background-image:
+    radial-gradient(rgba(139, 124, 255, 0.14) 1.2px, transparent 1.3px),
+    linear-gradient(160deg, rgba(158, 228, 242, 0.35), rgba(214, 241, 92, 0.18));
+  background-size: 18px 18px, 100% 100%;
 }

@@ -4,6 +4,8 @@ import sharp from "sharp";
 import { prisma } from "@/lib/db";
 
 const AVATAR_DIR = path.join(process.cwd(), "uploads", "avatars");
+/** Filename prefix of photos the user uploaded themselves (see /api/me/avatar). */
+export const CUSTOM_AVATAR_PREFIX = "u_";
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -64,6 +66,13 @@ export async function syncTelegramAvatar(params: {
   photoUrl?: string;
 }) {
   try {
+    // A photo the user picked in the profile wins over the Telegram one.
+    const current = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { avatarUrl: true },
+    });
+    if (current?.avatarUrl?.startsWith(`/uploads/avatars/${CUSTOM_AVATAR_PREFIX}`)) return;
+
     let image = await photoViaBot(params.telegramId).catch(() => null);
     if (!image && params.photoUrl?.startsWith("https://")) {
       image = await download(params.photoUrl).catch(() => null);

@@ -104,31 +104,12 @@ export async function POST(req: AppRequest) {
     const ok = await verifyPassword(body.password, user.passwordHash);
     if (!ok) return jsonError("Неверный логин или пароль", 401);
 
+    // Several accounts on one device (e.g. a family phone) is not a risk signal.
     if (body.deviceFingerprint) {
-      const siblings = await prisma.user.count({
-        where: {
-          deviceFingerprint: body.deviceFingerprint,
-          NOT: { id: user.id },
-        },
-      });
       await prisma.user.update({
         where: { id: user.id },
-        data: {
-          deviceFingerprint: body.deviceFingerprint,
-          lastIp: ip,
-          ...(siblings >= 2 ? { riskScoreCached: { increment: 10 } } : {}),
-        },
+        data: { deviceFingerprint: body.deviceFingerprint, lastIp: ip },
       });
-      if (siblings >= 2) {
-        await prisma.riskEvent.create({
-          data: {
-            userId: user.id,
-            type: "SHARED_DEVICE",
-            score: 20,
-            detail: `siblings=${siblings}`,
-          },
-        });
-      }
     }
 
     const token = await createSession(user.id);

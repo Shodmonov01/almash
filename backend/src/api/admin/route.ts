@@ -28,9 +28,25 @@ export async function GET(req: AppRequest) {
     }
 
     if (tab === "users") {
+      // Explicit select: never ship passwordHash, device fingerprint, IP or telegramId to the browser.
       const users = await prisma.user.findMany({
         orderBy: { createdAt: "desc" },
         take: 100,
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          avatarUrl: true,
+          city: true,
+          role: true,
+          status: true,
+          trustLevel: true,
+          rating: true,
+          completedTrades: true,
+          warningCount: true,
+          riskScoreCached: true,
+          createdAt: true,
+        },
       });
       return jsonOk({ users });
     }
@@ -62,7 +78,8 @@ export async function GET(req: AppRequest) {
     if (tab === "disputes") {
       const disputes = await prisma.dispute.findMany({
         include: {
-          trade: true,
+          // not `trade: true` — that would leak both parties' handoff codes and QR token
+          trade: { select: { id: true, publicId: true, status: true } },
           openedBy: { select: { id: true, name: true, username: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -83,7 +100,7 @@ export async function GET(req: AppRequest) {
     }
 
     // TZ §52 «Антифрод»: suspicious accounts & deals, mass actions,
-    // repeated photos/descriptions, sale attempts, shared devices.
+    // repeated photos/descriptions, sale attempts.
     if (tab === "antifraud") {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const [
@@ -93,7 +110,6 @@ export async function GET(req: AppRequest) {
         saleAttempts,
         itemsByOwner,
         offersByUser,
-        deviceGroupsRaw,
       ] = await Promise.all([
         prisma.user.findMany({
           where: { riskScoreCached: { gte: 30 } },
@@ -141,11 +157,6 @@ export async function GET(req: AppRequest) {
           where: { createdAt: { gte: since } },
           _count: { _all: true },
         }),
-        prisma.user.groupBy({
-          by: ["deviceFingerprint"],
-          where: { deviceFingerprint: { not: null } },
-          _count: { _all: true },
-        }),
       ]);
 
       const riskyUsers = [];
@@ -167,15 +178,6 @@ export async function GET(req: AppRequest) {
           .filter((g) => g._count._all >= 5)
           .map((g) => ({ userId: g.initiatorId, kind: "предложений за 24ч", count: g._count._all })),
       ];
-      const deviceGroupsFiltered = deviceGroupsRaw.filter((g) => g._count._all >= 2);
-      const deviceUsers = await prisma.user.findMany({
-        where: {
-          deviceFingerprint: {
-            in: deviceGroupsFiltered.map((g) => g.deviceFingerprint as string),
-          },
-        },
-        select: { id: true, name: true, username: true, deviceFingerprint: true },
-      });
       const names = await prisma.user.findMany({
         where: { id: { in: massRaw.map((m) => m.userId) } },
         select: { id: true, name: true },
@@ -189,10 +191,6 @@ export async function GET(req: AppRequest) {
           duplicates,
           saleAttempts,
           massActions: massRaw.map((m) => ({ ...m, name: nameById.get(m.userId) || "—" })),
-          sharedDevices: deviceGroupsFiltered.map((g) => ({
-            device: String(g.deviceFingerprint).slice(0, 12),
-            users: deviceUsers.filter((u) => u.deviceFingerprint === g.deviceFingerprint),
-          })),
         },
       });
     }

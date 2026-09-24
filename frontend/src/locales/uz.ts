@@ -32,6 +32,14 @@ const uz = {
     favorites: "Sevimlilar",
     alerts: "Bildirishnomalar",
     logout: "Chiqish",
+    avatar: {
+      change: "Rasmni o‘zgartirish",
+    },
+    stats: {
+      rating: "Reyting",
+      trades: "Almashuvlar",
+      trust: "Ishonch",
+    },
     security: {
       title: "Kirish va xavfsizlik",
       status: "Telegram: {{telegram}} · parol: {{password}}",
@@ -79,6 +87,10 @@ const uz = {
     listings: {
       title: "Mening e'lonlarim",
       add: "+ Qo'shish",
+      delete: "E'lonni o'chirish",
+      confirmDelete: "«{{title}}» o'chirilsinmi? E'lon katalogdan yo'qoladi.",
+      inTrade: "O'yinchoq bitimda ishtirok etmoqda — bitim tugamaguncha o'chirib bo'lmaydi.",
+      empty: "Sizda hozircha e'lonlar yo'q.",
     },
   },
   common: {
@@ -100,6 +112,7 @@ const uz = {
       title: "Xabarlar",
       empty: "Hozircha yozishmalar yo'q. Almashuv taklif qilganingizda chat paydo bo'ladi.",
       attachment: "📎 Ilova",
+      you: "Siz",
     },
     notifications: {
       title: "Bildirishnomalar",
@@ -354,6 +367,14 @@ const uz = {
     reportBlockReason: "Shikoyat: {{reason}}",
     blockUser: "{{name}} ni bloklash",
     noData: "Ma'lumot yo'q",
+    ov: {
+      users: "Foydalanuvchilar",
+      items: "E'lonlar",
+      trades: "Bitimlar",
+      openDisputes: "Ochiq nizolar",
+      openReports: "Ochiq shikoyatlar",
+      riskEvents: "So'nggi xavf hodisalari",
+    },
     af: {
       riskyUsers: "Shubhali akkauntlar",
       warnings: "ogohlantirishlar: {{count}}",
@@ -361,7 +382,6 @@ const uz = {
       checked: "Tekshirildi",
       riskyTrades: "Shubhali bitimlar",
       mass: "Ommaviy harakatlar (24 soat)",
-      devices: "Bitta qurilmadagi bir nechta akkaunt",
       duplicates: "Takroriy rasmlar va tavsiflar",
       photo: "Rasm",
       description: "Tavsif",
@@ -466,6 +486,9 @@ const uz = {
     received: "Barcha buyumlarni oldim",
     scan: "Suhbatdoshning QR kodini skanerlash",
     chat: "Bitim chati",
+    chatEmpty: "Hozircha xabar yo‘q — birinchi bo‘lib yozing 👋",
+    chatClosed: "Chat yopilgan — bitim endi faol emas",
+    send: "Yuborish",
     imageAlt: "Rasm",
     blocked: "⚠ filtr tomonidan bloklandi",
     videoAttached: "Video biriktirildi",

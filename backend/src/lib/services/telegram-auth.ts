@@ -177,32 +177,6 @@ export async function loginWithTelegram(params: {
   const tgId = String(identity.id);
   let user = await prisma.user.findUnique({ where: { telegramId: tgId } });
 
-  if (params.deviceFingerprint) {
-    const siblings = await prisma.user.count({
-      where: {
-        deviceFingerprint: params.deviceFingerprint,
-        NOT: { telegramId: tgId },
-      },
-    });
-    if (siblings >= 2 && (user || params.linkToUserId)) {
-      const targetId = user?.id || params.linkToUserId;
-      if (targetId) {
-        await prisma.riskEvent.create({
-          data: {
-            userId: targetId,
-            type: "SHARED_DEVICE",
-            score: 20,
-            detail: `device=${params.deviceFingerprint} siblings=${siblings}`,
-          },
-        });
-        await prisma.user.update({
-          where: { id: targetId },
-          data: { riskScoreCached: { increment: 10 } },
-        });
-      }
-    }
-  }
-
   if (params.linkToUserId) {
     const account = await prisma.user.findUnique({
       where: { id: params.linkToUserId },

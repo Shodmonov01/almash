@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
@@ -11,6 +11,7 @@ import {
 import { CounterOfferPanel } from "@/components/trade/CounterOfferPanel";
 import { SnapshotTimeline } from "@/components/trade/SnapshotTimeline";
 import { QrScannerModal } from "@/components/trade/QrScannerModal";
+import { TradeChat, type ChatMsg } from "@/components/trade/TradeChat";
 import { DateTimePicker, defaultMeetingValue } from "@/components/DateTimePicker";
 import { FancySelect } from "@/components/FancySelect";
 import { ReportButton } from "@/components/ReportButton";
@@ -57,25 +58,12 @@ type Trade = {
   auditLogs: { action: string; createdAt: string; metaJson?: string | null }[];
 };
 
-type Msg = {
-  id: string;
-  body: string;
-  mediaUrl?: string | null;
-  system: boolean;
-  flagged: boolean;
-  createdAt: string;
-  sender: { id: string; name: string };
-};
-
 export default function TradeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [trade, setTrade] = useState<Trade | null>(null);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [text, setText] = useState("");
-  const [pendingMediaUrl, setPendingMediaUrl] = useState<string | null>(null);
-  const [chatImageUploading, setChatImageUploading] = useState(false);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [qrByCode, setQrByCode] = useState<Record<string, string>>({});
 
@@ -109,7 +97,7 @@ export default function TradeDetailPage() {
   const reload = useCallback(async () => {
     const [tr, m] = await Promise.all([
       api<{ trade: Trade }>(`/api/trades/${id}`),
-      api<{ messages: Msg[] }>(`/api/trades/${id}/messages`),
+      api<{ messages: ChatMsg[] }>(`/api/trades/${id}/messages`),
     ]);
     setTrade(tr.trade);
     setMessages(m.messages);
@@ -126,7 +114,7 @@ export default function TradeDetailPage() {
   useEffect(() => {
     if (!user) return;
     const t = setInterval(() => {
-      api<{ messages: Msg[] }>(`/api/trades/${id}/messages`)
+      api<{ messages: ChatMsg[] }>(`/api/trades/${id}/messages`)
         .then((m) => setMessages(m.messages))
         .catch(() => {});
     }, 4000);
@@ -152,27 +140,6 @@ export default function TradeDetailPage() {
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
-    }
-  }
-
-  async function sendMsg(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim() && !pendingMediaUrl) return;
-    setError("");
-    try {
-      await api(`/api/trades/${id}/messages`, {
-        method: "POST",
-        body: JSON.stringify({
-          body: text.trim() || t("pages.messages.attachment"),
-          mediaUrl: pendingMediaUrl || undefined,
-        }),
-      });
-      setText("");
-      setPendingMediaUrl(null);
-      await reload();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : t("common.error");
-      setError(msg);
     }
   }
 
@@ -449,142 +416,16 @@ export default function TradeDetailPage() {
       )}
 
       {/* Chat */}
-      <section className="rounded-2xl bg-white/80 ring-1 ring-forest/10 sm:rounded-3xl">
-        <div className="border-b border-forest/10 px-4 py-3 font-medium">
-          {t("trade.chat")}
-        </div>
-        <div className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-contain p-3 sm:max-h-80 sm:p-4">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={
-                m.system
-                  ? "text-center text-xs text-ink/45"
-                  : m.sender.id === user.id
-                    ? "ml-6 rounded-2xl bg-forest px-3 py-2 text-sm text-cream sm:ml-8"
-                    : "mr-6 rounded-2xl bg-mist/70 px-3 py-2 text-sm sm:mr-8"
-              }
-            >
-              {!m.system && (
-                <p className="mb-0.5 text-[10px] opacity-70">{m.sender.name}</p>
-              )}
-              {m.mediaUrl && isVideoUrl(m.mediaUrl) && (
-                <video
-                  src={mediaUrl(m.mediaUrl)}
-                  controls
-                  preload="metadata"
-                  className="my-1 max-h-60 w-full rounded-xl bg-black ring-1 ring-forest/15"
-                />
-              )}
-              {m.mediaUrl && !isVideoUrl(m.mediaUrl) && (
-                <a
-                  href={mediaUrl(m.mediaUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="my-1 block overflow-hidden rounded-xl"
-                >
-                  <img
-                    src={mediaUrl(m.mediaUrl)}
-                    alt={t("trade.imageAlt")}
-                    className="max-h-48 rounded-xl object-cover ring-1 ring-forest/15 hover:opacity-90"
-                  />
-                </a>
-              )}
-              {m.body}
-              {m.flagged && (
-                <p className="mt-1 text-[10px] text-coral">{t("trade.blocked")}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        {!["COMPLETED", "CANCELLED", "BLOCKED"].includes(trade.status) && (
-          <div className="border-t border-forest/10">
-            {pendingMediaUrl && (
-              <div className="flex items-center gap-2 bg-forest/5 px-4 py-2 text-xs">
-                {isVideoUrl(pendingMediaUrl) ? (
-                  <video
-                    src={mediaUrl(pendingMediaUrl)}
-                    muted
-                    className="h-10 w-10 rounded-lg bg-black object-cover ring-1 ring-forest/20"
-                  />
-                ) : (
-                  <img
-                    src={mediaUrl(pendingMediaUrl)}
-                    alt=""
-                    className="h-10 w-10 rounded-lg object-cover ring-1 ring-forest/20"
-                  />
-                )}
-                <span className="text-ink/70">
-                  {isVideoUrl(pendingMediaUrl) ? t("trade.videoAttached") : t("trade.photoAttached")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPendingMediaUrl(null)}
-                  className="ml-auto font-bold text-coral hover:underline"
-                >
-                  {t("trade.remove")}
-                </button>
-              </div>
-            )}
-            <form
-              onSubmit={sendMsg}
-              className="flex items-center gap-2 p-3"
-            >
-              <label
-                className={`flex shrink-0 cursor-pointer items-center justify-center rounded-xl p-3 text-forest transition ${
-                  chatImageUploading
-                    ? "bg-mist opacity-50"
-                    : "bg-forest/10 hover:bg-forest/20"
-                }`}
-                title={t("trade.attach")}
-              >
-                <Camera size={18} />
-                <input
-                  type="file"
-                  accept={`image/*,${VIDEO_ACCEPT}`}
-                  disabled={chatImageUploading}
-                  className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setChatImageUploading(true);
-                    setError("");
-                    try {
-                      setPendingMediaUrl(await uploadMedia(file, trade.publicId));
-                    } catch (err) {
-                      setError(
-                        err instanceof Error
-                          ? err.message
-                          : t("trade.fileError"),
-                      );
-                    } finally {
-                      setChatImageUploading(false);
-                      e.target.value = "";
-                    }
-                  }}
-                />
-              </label>
-              <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={
-                  pendingMediaUrl
-                    ? t("trade.commentPhoto")
-                    : t("trade.messagePlaceholder")
-                }
-                className="min-w-0 flex-1 rounded-xl border border-forest/15 px-3 py-3 text-sm"
-              />
-              <button
-                type="submit"
-                disabled={chatImageUploading}
-                className="shrink-0 rounded-xl bg-forest px-4 py-3 text-sm text-cream disabled:opacity-50"
-              >
-                →
-              </button>
-            </form>
-          </div>
-        )}
-      </section>
+      <TradeChat
+        tradeId={id!}
+        publicId={trade.publicId}
+        meId={user.id}
+        peer={trade.parties.find((p) => p.userId !== user.id)?.user}
+        messages={messages}
+        closed={["COMPLETED", "CANCELLED", "BLOCKED", "EXPIRED"].includes(trade.status)}
+        onSent={reload}
+        onError={setError}
+      />
 
       {/* Review */}
       {trade.status === "COMPLETED" && !hasMyReview && (

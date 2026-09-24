@@ -148,7 +148,6 @@ describe("risk score", () => {
         manyCancels: true,
         manyDisputes: true,
         duplicatePhotos: true,
-        sharedDevice: true,
       }),
     ).toBe(100);
   });

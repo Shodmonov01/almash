@@ -18,7 +18,6 @@ export const SIGNAL_LABELS: Record<keyof RiskSignals, string> = {
   manyDisputes: "частые/проигранные споры",
   duplicatePhotos: "повторяющиеся фотографии",
   duplicateDescriptions: "одинаковые описания",
-  sharedDevice: "несколько аккаунтов с одного устройства",
   manyReports: "много жалоб",
   noShows: "неявки на встречи",
   burstActivity: "резкий всплеск активности",
@@ -56,7 +55,6 @@ export async function collectUserSignals(userId: string): Promise<RiskSignals> {
     listingMoney,
     dupPhotos,
     dupDescriptions,
-    deviceSiblings,
   ] = await Promise.all([
     prisma.item.count({ where: { ownerId: userId, createdAt: { gte: new Date(now - DAY) } } }),
     prisma.item.count({ where: { ownerId: userId } }),
@@ -81,11 +79,6 @@ export async function collectUserSignals(userId: string): Promise<RiskSignals> {
     prisma.riskEvent.count({ where: { userId, type: "MONEY_IN_LISTING" } }),
     prisma.riskEvent.count({ where: { userId, type: "DUPLICATE_PHOTO" } }),
     prisma.riskEvent.count({ where: { userId, type: "DUPLICATE_DESCRIPTION" } }),
-    user.deviceFingerprint
-      ? prisma.user.count({
-          where: { deviceFingerprint: user.deviceFingerprint, NOT: { id: userId } },
-        })
-      : Promise.resolve(0),
   ]);
 
   const chatReasons = chatEvents.flatMap((e) =>
@@ -106,7 +99,6 @@ export async function collectUserSignals(userId: string): Promise<RiskSignals> {
     manyDisputes: user.disputesLost >= 2 || user.disputesCount > 3,
     duplicatePhotos: dupPhotos > 0,
     duplicateDescriptions: dupDescriptions > 0,
-    sharedDevice: deviceSiblings >= 2,
     manyReports: reportsAgainst >= 3,
     noShows: user.noShowCount >= 2,
     burstActivity: offers24h >= 8,

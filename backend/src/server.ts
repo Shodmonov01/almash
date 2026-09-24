@@ -16,6 +16,7 @@ import { processTelegramOutbox } from "./lib/services/telegram-notify";
 import * as auth from "./api/auth/route";
 import * as register from "./api/auth/register/route";
 import * as me from "./api/me/route";
+import * as meAvatar from "./api/me/avatar/route";
 import * as meta from "./api/meta/route";
 import * as demoUsers from "./api/demo-users/route";
 import * as items from "./api/items/route";
@@ -118,6 +119,7 @@ async function main() {
   app.post("/api/auth/register", wrap(register.POST));
 
   app.patch("/api/me", wrap(me.PATCH));
+  app.post("/api/me/avatar", wrap(meAvatar.POST));
   app.get("/api/meta", wrap(meta.GET));
   app.get("/api/demo-users", wrap(demoUsers.GET));
 
