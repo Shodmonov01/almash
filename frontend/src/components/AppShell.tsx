@@ -61,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {/*</span>*/}
             {/* square SVG: fits the 56px (phone) / 64px (sm+) header without distortion */}
             <img
-              src={header_logo}
+              src={header_logo}  
               alt="RETOY"
               className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
             />
@@ -130,7 +130,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 to="/profile"
                 title={t("nav.profile")}
                 aria-label={t("nav.profile")}
-                className="flex max-w-[40vw] items-center gap-2 rounded-full bg-white py-1 pl-1 pr-2.5 text-sm font-bold shadow-sm sm:pr-3"
+                // right padding only where the name is shown (sm–lg); otherwise a plain avatar circle
+                className="flex max-w-[40vw] items-center gap-2 rounded-full bg-white p-1 text-sm font-bold shadow-sm sm:pr-3 lg:pr-1"
               >
                 <img
                   src={mediaUrl(user.avatarUrl) || "https://placehold.co/40x40"}
