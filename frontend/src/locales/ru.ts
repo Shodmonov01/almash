@@ -97,6 +97,8 @@ const ru = {
   },
   common: {
     error: "Ошибка",
+    showPassword: "Показать пароль",
+    hidePassword: "Скрыть пароль",
   },
   pages: {
     loading: "Загрузка…",

@@ -5,6 +5,7 @@ import { mediaUrl } from "@/lib/env";
 import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { useTranslation } from "react-i18next";
 import { LanguageList } from "@/components/LanguageSwitcher";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -340,21 +341,21 @@ export default function ProfilePage() {
               }}
           >
             {user.hasPassword && (
-                <input
-                    type="password"
+                <PasswordInput
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder={t("profile.security.current")}
+                    autoComplete="current-password"
                     className="rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold"
                 />
             )}
-            <input
-                type="password"
+            <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t(user.hasPassword ? "profile.security.new" : "profile.security.set")}
                 minLength={8}
                 required
+                autoComplete="new-password"
                 className="rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold"
             />
             <button

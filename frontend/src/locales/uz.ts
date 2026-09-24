@@ -95,6 +95,8 @@ const uz = {
   },
   common: {
     error: "Xatolik",
+    showPassword: "Parolni ko‘rsatish",
+    hidePassword: "Parolni yashirish",
   },
   pages: {
     loading: "Yuklanmoqda…",

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { ToyMascot } from "@/components/ToyMascot";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useNavigate } from "react-router-dom";
 import {
   getTelegramInitData,
@@ -184,8 +185,7 @@ export default function LoginPage() {
               <span className="mb-1 block text-xs font-extrabold uppercase tracking-wide text-ink/50">
                 {t("login.password")}
               </span>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -193,7 +193,7 @@ export default function LoginPage() {
                 autoComplete={
                   mode === "register" ? "new-password" : "current-password"
                 }
-                className="w-full rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold outline-none ring-forest/30 focus:ring-2"
+                className="rounded-2xl border border-ink/10 bg-cream px-4 py-3 font-semibold outline-none ring-forest/30 focus:ring-2"
               />
               {mode === "register" && (
                 <span className="mt-1 block text-xs font-semibold text-ink/45">
