@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, RefreshCw } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, ChevronLeft, ChevronRight, Heart, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/client";
 import { mediaUrl } from "@/lib/env";
 import { ReportButton } from "@/components/ReportButton";
+import { useFeedback } from "@/components/Feedback";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useLabels } from "@/lib/labels";
@@ -52,6 +54,7 @@ export default function ItemPage() {
   >([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [offerOpen, setOfferOpen] = useState(false);
+  const [myItemsLoading, setMyItemsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -59,6 +62,7 @@ export default function ItemPage() {
   const [activePhoto, setActivePhoto] = useState(0);
   const { t } = useTranslation();
   const labels = useLabels();
+  const { toast } = useFeedback();
 
   useEffect(() => {
     setActivePhoto(0);
@@ -67,13 +71,32 @@ export default function ItemPage() {
 
   useEffect(() => {
     if (!user || !offerOpen) return;
-    api<{ items: MyItem[] }>(`/api/items?ownerId=${user.id}`).then((d) =>
-      setMyItems(d.items.filter((i) => (i as MyItem & { status?: string }).status !== "HIDDEN")),
-    );
+    setMyItemsLoading(true);
+    api<{ items: MyItem[] }>(`/api/items?ownerId=${user.id}`)
+      .then((d) =>
+        setMyItems(d.items.filter((i) => (i as MyItem & { status?: string }).status !== "HIDDEN")),
+      )
+      .catch(() => setMyItems([]))
+      .finally(() => setMyItemsLoading(false));
     api<{ sets: typeof mySets }>("/api/sets").then((d) =>
       setMySets(d.sets || []),
     );
   }, [user, offerOpen]);
+
+  // Offer sheet open: lock the page behind it and close on Escape
+  useEffect(() => {
+    if (!offerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOfferOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [offerOpen]);
 
   if (!item) return <p className="text-ink/50">{t("pages.loading")}</p>;
 
@@ -91,6 +114,7 @@ export default function ItemPage() {
       body: JSON.stringify({ itemId: item!.id }),
     });
     setItem({ ...item!, favorited: d.favorited });
+    toast.success(t(d.favorited ? "toast.favAdded" : "toast.favRemoved"));
   }
 
   async function sendOffer() {
@@ -110,6 +134,7 @@ export default function ItemPage() {
           message: message || undefined,
         }),
       });
+      toast.success(t("toast.offerSent"));
       navigate(`/trades/${d.trade.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
@@ -276,82 +301,173 @@ export default function ItemPage() {
           )}
         </div>
 
-        {offerOpen && (
-          <div className="space-y-3 rounded-2xl border border-forest/15 bg-white p-4">
-            <div className="flex flex-wrap items-center justify-between gap-1">
-              <p className="font-medium">{t("itemPage.pickMine")}</p>
-              {mySets.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-xs text-ink/60">{t("itemPage.pickSet")}</span>
-                  {mySets.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        const setIds = s.items.map((i) => i.item.id);
-                        setSelected((prev) => {
-                          const allIncluded = setIds.every((id) => prev.includes(id));
-                          return allIncluded
-                            ? prev.filter((id) => !setIds.includes(id))
-                            : [...new Set([...prev, ...setIds])];
-                        });
-                      }}
-                      className="rounded-lg bg-forest/10 px-2 py-0.5 text-xs font-semibold text-forest hover:bg-forest/20"
-                    >
-                      📦 {s.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
-              {myItems
-                .filter((i) => i.id)
-                .map((mi) => {
-                  const on = selected.includes(mi.id);
-                  return (
-                    <button
-                      key={mi.id}
-                      type="button"
-                      onClick={() =>
-                        setSelected((s) =>
-                          on ? s.filter((x) => x !== mi.id) : [...s, mi.id],
-                        )
-                      }
-                      className={
-                        on
-                          ? "rounded-xl bg-forest p-2 text-left text-sm text-cream"
-                          : "rounded-xl bg-mist/60 p-2 text-left text-sm"
-                      }
-                    >
-                      <img
-                        src={mediaUrl(mi.media?.[0]?.url) || "https://placehold.co/100"}
-                        alt=""
-                        className="mb-1 h-16 w-full rounded-lg object-cover"
-                      />
-                      {mi.title}
-                    </button>
-                  );
-                })}
-            </div>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={t("itemPage.messagePlaceholder")}
-              className="w-full rounded-xl border border-forest/15 p-2 text-sm"
-              rows={2}
-            />
-            {error && <p className="text-sm text-coral">{error}</p>}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={sendOffer}
-              className="w-full rounded-xl bg-forest py-3 text-sm font-semibold text-cream disabled:opacity-60"
+        {offerOpen &&
+          // Bottom sheet on phones, centred dialog on larger screens. Only the
+          // item grid scrolls, so the send button is always in reach.
+          createPortal(
+            <div
+              className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/50 pt-[var(--app-inset-top)] backdrop-blur-[2px] sm:items-center sm:p-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setOfferOpen(false);
+              }}
             >
-              {busy ? t("itemPage.sending") : t("itemPage.send")}
-            </button>
-          </div>
-        )}
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="offer-title"
+                className="flex max-h-full w-full animate-bouncein flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:max-h-[88dvh] sm:max-w-lg sm:rounded-[1.75rem]"
+              >
+                {/* Header: what the offer is for */}
+                <div className="flex shrink-0 items-center gap-3 border-b border-ink/[0.06] px-4 py-3">
+                  <img
+                    src={mediaUrl(photos[0]?.url) || "https://placehold.co/96x96"}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p id="offer-title" className="text-xs font-bold uppercase tracking-wide text-ink/45">
+                      {t("itemPage.offer")}
+                    </p>
+                    <p className="truncate text-[15px] font-extrabold text-ink">{item.title}</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={t("common.cancel")}
+                    onClick={() => setOfferOpen(false)}
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink/50 transition hover:bg-ink/5 active:scale-90"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Scrollable body: sets + my items */}
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold text-ink">{t("itemPage.pickMine")}</p>
+                    {selected.length > 0 && (
+                      <span className="shrink-0 text-xs font-bold text-forest">
+                        {t("profile.sets.selected", { count: selected.length })}
+                      </span>
+                    )}
+                  </div>
+
+                  {mySets.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                      <span className="shrink-0 text-xs font-semibold text-ink/50">{t("itemPage.pickSet")}</span>
+                      {mySets.map((s) => {
+                        const setIds = s.items.map((i) => i.item.id);
+                        const allIn = setIds.length > 0 && setIds.every((id) => selected.includes(id));
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() =>
+                              setSelected((prev) =>
+                                setIds.every((id) => prev.includes(id))
+                                  ? prev.filter((id) => !setIds.includes(id))
+                                  : [...new Set([...prev, ...setIds])],
+                              )
+                            }
+                            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition active:scale-95 ${
+                              allIn ? "bg-forest text-white" : "bg-forest/10 text-forest hover:bg-forest/20"
+                            }`}
+                          >
+                            📦 {s.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {myItemsLoading ? (
+                    <div className="grid place-items-center py-10">
+                      <Loader2 size={24} className="animate-spin text-forest" />
+                    </div>
+                  ) : myItems.length === 0 ? (
+                    <div className="flex flex-col items-center gap-3 rounded-2xl bg-cream/60 px-4 py-8 text-center">
+                      <p className="text-sm font-semibold text-ink/55">{t("profile.sets.noItems")}</p>
+                      <Link
+                        to="/items/new"
+                        className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-forest px-4 text-sm font-bold text-white"
+                      >
+                        <Plus size={16} />
+                        {t("nav.add")}
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 p-0.5 sm:grid-cols-3">
+                      {myItems.map((mi) => {
+                        const on = selected.includes(mi.id);
+                        return (
+                          <button
+                            key={mi.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => {
+                              setError("");
+                              setSelected((s) => (on ? s.filter((x) => x !== mi.id) : [...s, mi.id]));
+                            }}
+                            className={`overflow-hidden rounded-2xl bg-white text-left shadow-sm transition active:scale-[0.97] ${
+                              on ? "ring-[3px] ring-forest" : "ring-1 ring-forest/10 hover:ring-forest/30"
+                            }`}
+                          >
+                            <div className="relative aspect-square w-full overflow-hidden bg-cream">
+                              <img
+                                src={mediaUrl(mi.media?.[0]?.url) || "https://placehold.co/300x300"}
+                                alt=""
+                                loading="lazy"
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                              <span
+                                className={`absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full text-white shadow transition ${
+                                  on ? "bg-forest" : "bg-white/80 ring-1 ring-ink/10"
+                                }`}
+                              >
+                                {on && <Check size={14} strokeWidth={3} />}
+                              </span>
+                            </div>
+                            <p
+                              className={`line-clamp-2 px-2 py-1.5 text-xs font-bold leading-snug ${
+                                on ? "text-forest" : "text-ink"
+                              }`}
+                            >
+                              {mi.title}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer: always visible */}
+                <div className="shrink-0 space-y-2 border-t border-ink/[0.06] px-4 pt-3 pb-[max(0.75rem,var(--app-inset-bottom))]">
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder={t("itemPage.messagePlaceholder")}
+                    rows={1}
+                    className="max-h-24 min-h-11 w-full resize-none rounded-2xl bg-ink/[0.04] px-4 py-2.5 text-sm outline-none placeholder:text-ink/35 focus:bg-ink/[0.06]"
+                  />
+                  {error && <p className="text-sm font-semibold text-coral">{error}</p>}
+                  <button
+                    type="button"
+                    disabled={busy || selected.length === 0}
+                    onClick={sendOffer}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-sm font-extrabold text-white shadow-sm transition active:scale-[0.98] disabled:bg-ink/10 disabled:text-ink/35 disabled:shadow-none"
+                  >
+                    {busy ? <Loader2 size={17} className="animate-spin" /> : <RefreshCw size={17} />}
+                    {busy
+                      ? t("itemPage.sending")
+                      : selected.length > 0
+                        ? `${t("itemPage.send")} (${selected.length})`
+                        : t("itemPage.send")}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     </div>
   );

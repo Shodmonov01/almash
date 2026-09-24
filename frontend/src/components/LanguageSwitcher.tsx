@@ -3,8 +3,7 @@ import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES, type Language } from "@/lib/i18n";
 
-// Flags are drawn on a square canvas so they can be cropped into a circle
-// without losing the emblem (the UZ crescent sits near the left edge).
+
 function FlagRU({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" className={className} aria-hidden>

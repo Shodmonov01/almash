@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { api } from "@/lib/client";
 import { FancySelect } from "@/components/FancySelect";
+import { useFeedback } from "@/components/Feedback";
 import { REPORT_REASONS } from "@/lib/constants";
 import { useTranslation } from "react-i18next";
 import { useLabels } from "@/lib/labels";
@@ -28,6 +29,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
   const [busy, setBusy] = useState(false);
   const { t } = useTranslation();
   const labels = useLabels();
+  const { toast } = useFeedback();
 
   // While open: lock the page behind the sheet, close on Escape
   useEffect(() => {
@@ -60,6 +62,7 @@ export function ReportButton({ targetUserId, itemId, tradeId }: Props) {
       });
       setDone(true);
       setOpen(false);
+      toast.success(t("report.sent"));
     } catch (e) {
       setError(e instanceof Error ? e.message : t("common.error"));
     } finally {

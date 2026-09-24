@@ -6,23 +6,27 @@ import { ItemCard, type ItemCardData } from "@/components/ItemCard";
 import { useTranslation } from "react-i18next";
 import { LanguageList } from "@/components/LanguageSwitcher";
 import { PasswordInput } from "@/components/PasswordInput";
+import { useFeedback } from "@/components/Feedback";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Bell,
   Camera,
+  Check,
   ChevronRight,
   Heart,
   Languages,
+  Layers,
   Loader2,
   LogOut,
+  Plus,
   Shield,
   ShieldCheck,
   Star,
   Trash2,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import {
-  ensureTelegramWriteAccess,
   getTelegramInitData,
   isTelegramMiniApp,
   requestTelegramWidgetAuth,
@@ -96,6 +100,7 @@ export default function ProfilePage() {
   const { user, loading, logout, refresh, loginTelegram, telegram } = useAuth();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { toast, confirm } = useFeedback();
   const [items, setItems] = useState<(ItemCardData & { status?: string })[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [listingErr, setListingErr] = useState("");
@@ -185,6 +190,7 @@ export default function ProfilePage() {
                   form.append("file", file);
                   await api("/api/me/avatar", { method: "POST", body: form });
                   await refresh();
+                  toast.success(t("toast.avatarUpdated"));
                 } catch (err) {
                   setAvatarErr(err instanceof Error ? err.message : t("common.error"));
                 } finally {
@@ -264,50 +270,6 @@ export default function ProfilePage() {
             })}
           </p>
 
-          {/* TZ §50: Telegram notifications on/off */}
-          <div className="flex items-start justify-between gap-3 rounded-2xl bg-cream/60 p-3">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-ink">{t("profile.tg.title")}</p>
-              <p className="text-xs text-ink/55">
-                {user.telegramLinked
-                  ? t("profile.tg.hint", { bot: telegram.botUsername ? `@${telegram.botUsername}` : "" })
-                  : t("profile.tg.notLinked")}
-              </p>
-            </div>
-            <button
-                type="button"
-                role="switch"
-                aria-checked={user.telegramLinked && user.tgNotify !== false}
-                aria-label={t("profile.tg.title")}
-                disabled={!user.telegramLinked || busy}
-                onClick={async () => {
-                  const next = !(user.tgNotify !== false);
-                  setBusy(true);
-                  setSecurityErr("");
-                  try {
-                    if (next) await ensureTelegramWriteAccess();
-                    await api("/api/me", {
-                      method: "PATCH",
-                      body: JSON.stringify({ tgNotify: next }),
-                    });
-                    await refresh();
-                  } catch (e) {
-                    setSecurityErr(e instanceof Error ? e.message : t("common.error"));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-40 ${
-                  user.telegramLinked && user.tgNotify !== false ? "bg-forest" : "bg-ink/20"
-                }`}
-            >
-              <span
-                  className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${
-                    user.telegramLinked && user.tgNotify !== false ? "left-[1.375rem]" : "left-0.5"
-                  }`}
-              />
-            </button>
-          </div>
           {securityErr && (
               <p className="text-sm font-semibold text-coral">{securityErr}</p>
           )}
@@ -401,12 +363,13 @@ export default function ProfilePage() {
 
         {/* Мои наборы (ItemSets - TZ п. 8) */}
         <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-display text-xl leading-tight text-forest sm:text-2xl">{t("profile.sets.title")}</h2>
-              <p className="mt-1 text-xs leading-relaxed text-ink/60">
-                {t("profile.sets.hint")}
-              </p>
+              <h2 className="flex items-center gap-2 font-display text-xl leading-tight text-ink sm:text-2xl">
+                <Layers size={20} className="shrink-0 text-forest" />
+                {t("profile.sets.title")}
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-ink/55">{t("profile.sets.hint")}</p>
             </div>
             <button
                 type="button"
@@ -414,13 +377,15 @@ export default function ProfilePage() {
                   setIsCreatingSet((v) => !v);
                   setItemSetError("");
                 }}
-                className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-full px-5 text-sm font-extrabold transition sm:w-auto ${
-                  isCreatingSet
-                    ? "bg-ink/5 text-ink/70 hover:bg-ink/10"
-                    : "bg-forest text-cream shadow-[0_4px_0_#6f63d6] hover:brightness-105"
+                aria-label={isCreatingSet ? t("profile.sets.cancel") : t("profile.sets.create")}
+                className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-extrabold transition active:scale-95 ${
+                  isCreatingSet ? "bg-ink/[0.06] text-ink/70 hover:bg-ink/10" : "bg-forest text-white shadow-sm hover:brightness-105"
                 }`}
             >
-              {isCreatingSet ? t("profile.sets.cancel") : t("profile.sets.create")}
+              {isCreatingSet ? <X size={16} /> : <Plus size={16} strokeWidth={2.6} />}
+              <span className="hidden min-[400px]:inline">
+                {isCreatingSet ? t("profile.sets.cancel") : t("profile.sets.createShort")}
+              </span>
             </button>
           </div>
 
@@ -448,6 +413,7 @@ export default function ProfilePage() {
                       setSelectedSetItemIds([]);
                       setIsCreatingSet(false);
                       loadSets();
+                      toast.success(t("toast.setCreated"));
                     } catch (err) {
                       setItemSetError(
                           err instanceof Error ? err.message : t("profile.sets.createError"),
@@ -456,37 +422,39 @@ export default function ProfilePage() {
                       setItemSetBusy(false);
                     }
                   }}
-                  className="space-y-3 rounded-2xl bg-mist/40 p-3 sm:p-4"
+                  className="space-y-3 border-t border-ink/[0.06] pt-4"
               >
-                <p className="text-sm font-bold text-ink">{t("profile.sets.newTitle")}</p>
-                {itemSetError && (
-                    <p className="text-xs font-semibold text-coral">{itemSetError}</p>
-                )}
                 <input
                     type="text"
                     required
                     placeholder={t("profile.sets.namePlaceholder")}
                     value={newSetTitle}
                     onChange={(e) => setNewSetTitle(e.target.value)}
-                    className="min-h-11 w-full rounded-xl border border-forest/15 bg-white px-3 py-2 text-base outline-none focus:border-forest sm:text-sm"
+                    className="min-h-11 w-full rounded-2xl border border-ink/10 bg-cream/60 px-4 py-2.5 text-sm font-semibold outline-none transition placeholder:font-normal placeholder:text-ink/35 focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
                 />
                 <input
                     type="text"
                     placeholder={t("profile.sets.descPlaceholder")}
                     value={newSetDesc}
                     onChange={(e) => setNewSetDesc(e.target.value)}
-                    className="min-h-11 w-full rounded-xl border border-forest/15 bg-white px-3 py-2 text-base outline-none focus:border-forest sm:text-sm"
+                    className="min-h-11 w-full rounded-2xl border border-ink/10 bg-cream/60 px-4 py-2.5 text-sm outline-none transition placeholder:text-ink/35 focus:border-forest/40 focus:bg-white focus:ring-2 focus:ring-forest/15"
                 />
-                <div>
-                  <p className="mb-2 text-xs font-semibold text-ink/70">
-                    {t("profile.sets.pickItems")}
-                  </p>
+
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-ink/45">{t("profile.sets.pickItems")}</p>
+                    {selectedSetItemIds.length > 0 && (
+                        <span className="shrink-0 text-xs font-bold text-forest">
+                          {t("profile.sets.selected", { count: selectedSetItemIds.length })}
+                        </span>
+                    )}
+                  </div>
                   {items.length === 0 ? (
-                      <p className="text-xs text-ink/50">
+                      <p className="rounded-2xl bg-cream/60 px-4 py-6 text-center text-xs font-semibold text-ink/50">
                         {t("profile.sets.noItems")}
                       </p>
                   ) : (
-                      <div className="grid max-h-72 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pr-1 min-[380px]:grid-cols-2 sm:grid-cols-3">
+                      <div className="grid max-h-[22rem] grid-cols-2 gap-2 overflow-y-auto overscroll-contain p-0.5 sm:grid-cols-3">
                         {items.map((it) => {
                           const isSelected = selectedSetItemIds.includes(it.id);
                           return (
@@ -494,94 +462,111 @@ export default function ProfilePage() {
                                   type="button"
                                   key={it.id}
                                   aria-pressed={isSelected}
-                                  onClick={() =>
-                                      setSelectedSetItemIds((prev) =>
-                                          isSelected
-                                              ? prev.filter((id) => id !== it.id)
-                                              : [...prev, it.id],
-                                      )
-                                  }
-                                  className={`flex min-h-14 w-full items-center gap-2 rounded-xl p-2 text-left text-xs transition ${
-                                      isSelected
-                                          ? "bg-forest/15 ring-2 ring-forest"
-                                          : "bg-white hover:bg-forest/5"
+                                  onClick={() => {
+                                    setItemSetError("");
+                                    setSelectedSetItemIds((prev) =>
+                                        isSelected ? prev.filter((id) => id !== it.id) : [...prev, it.id],
+                                    );
+                                  }}
+                                  className={`overflow-hidden rounded-2xl bg-white text-left shadow-sm transition active:scale-[0.97] ${
+                                    isSelected ? "ring-[3px] ring-forest" : "ring-1 ring-ink/10 hover:ring-forest/30"
                                   }`}
                               >
-                                <img
-                                    src={mediaUrl(it.media?.[0]?.url) || ""}
-                                    alt=""
-                                    className="h-10 w-10 shrink-0 rounded-lg object-cover"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <p className="truncate font-semibold">{it.title}</p>
-                                  <p className="text-[10px] text-ink/60">{it.condition}</p>
+                                <div className="relative aspect-square w-full overflow-hidden bg-cream">
+                                  <img
+                                      src={mediaUrl(it.media?.[0]?.url) || "https://placehold.co/300x300"}
+                                      alt=""
+                                      loading="lazy"
+                                      className="absolute inset-0 h-full w-full object-cover"
+                                  />
+                                  <span
+                                      className={`absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full text-white shadow transition ${
+                                        isSelected ? "bg-forest" : "bg-white/80 ring-1 ring-ink/10"
+                                      }`}
+                                  >
+                                    {isSelected && <Check size={14} strokeWidth={3} />}
+                                  </span>
                                 </div>
-                                <span
-                                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
-                                        isSelected ? "bg-forest text-cream" : "ring-1 ring-ink/20"
+                                <p
+                                    className={`line-clamp-2 px-2 py-1.5 text-xs font-bold leading-snug ${
+                                      isSelected ? "text-forest" : "text-ink"
                                     }`}
                                 >
-                                  {isSelected ? "✓" : ""}
-                                </span>
+                                  {it.title}
+                                </p>
                               </button>
                           );
                         })}
                       </div>
                   )}
                 </div>
+
+                {itemSetError && (
+                    <p className="rounded-xl bg-coral/10 px-3 py-2 text-xs font-semibold text-coral">{itemSetError}</p>
+                )}
                 <button
                     type="submit"
                     disabled={itemSetBusy || items.length === 0}
-                    className="min-h-11 w-full rounded-full bg-forest py-2.5 text-sm font-extrabold text-cream disabled:opacity-50"
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-forest text-sm font-extrabold text-white shadow-sm transition active:scale-[0.98] disabled:opacity-50"
                 >
+                  {itemSetBusy && <Loader2 size={16} className="animate-spin" />}
                   {itemSetBusy ? t("profile.sets.saving") : t("profile.sets.save")}
                 </button>
               </form>
           )}
 
           {sets.length === 0 ? (
-              <p className="text-xs text-ink/50">
-                {t("profile.sets.empty")}
-              </p>
+              !isCreatingSet && (
+                  <p className="rounded-2xl bg-cream/60 px-4 py-6 text-center text-xs font-semibold text-ink/50">
+                    {t("profile.sets.empty")}
+                  </p>
+              )
           ) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 {sets.map((s) => (
-                    <div
-                        key={s.id}
-                        className="space-y-2 rounded-xl border border-forest/10 bg-white/80 p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
+                    <div key={s.id} className="space-y-3 rounded-2xl p-3 ring-1 ring-ink/[0.08]">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <h3 className="break-words font-display text-base text-ink">{s.title}</h3>
-                          {s.description && (
-                              <p className="text-xs text-ink/60">{s.description}</p>
-                          )}
+                          <h3 className="break-words text-[15px] font-extrabold leading-snug text-ink">{s.title}</h3>
+                          <p className="text-xs text-ink/50">
+                            {s.description ? `${s.description} · ` : ""}
+                            {t("profile.sets.itemsCount", { count: s.items.length })}
+                          </p>
                         </div>
                         <button
                             type="button"
+                            aria-label={t("profile.sets.delete")}
+                            title={t("profile.sets.delete")}
                             onClick={async () => {
-                              if (!confirm(t("profile.sets.confirmDelete", { title: s.title }))) return;
-                              await api(`/api/sets?id=${s.id}`, { method: "DELETE" });
-                              loadSets();
+                              const ok = await confirm({
+                                title: t("toast.deleteSetTitle"),
+                                message: t("profile.sets.confirmDelete", { title: s.title }),
+                              });
+                              if (!ok) return;
+                              try {
+                                await api(`/api/sets?id=${s.id}`, { method: "DELETE" });
+                                loadSets();
+                                toast.success(t("toast.setDeleted"));
+                              } catch (e) {
+                                toast.error(e instanceof Error ? e.message : t("common.error"));
+                              }
                             }}
-                            className="-mr-1 -mt-1 inline-flex min-h-9 shrink-0 items-center rounded-full px-3 text-xs font-bold text-coral/80 hover:bg-coral/10 hover:text-coral"
+                            className="-mr-1 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink/35 transition hover:bg-coral/10 hover:text-coral"
                         >
-                          {t("profile.sets.delete")}
+                          <Trash2 size={17} />
                         </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
+                      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                         {s.items.map(({ item }) => (
-                            <div
-                                key={item.id}
-                                className="flex items-center gap-1.5 rounded-lg bg-mist/60 px-2 py-1 text-[11px]"
-                            >
+                            <Link key={item.id} to={`/items/${item.id}`} className="w-16 shrink-0" title={item.title}>
                               <img
-                                  src={mediaUrl(item.media?.[0]?.url) || ""}
+                                  src={mediaUrl(item.media?.[0]?.url) || "https://placehold.co/128x128"}
                                   alt=""
-                                  className="h-5 w-5 rounded object-cover"
+                                  loading="lazy"
+                                  className="aspect-square w-16 rounded-xl object-cover ring-1 ring-ink/[0.06]"
                               />
-                              <span className="max-w-[9rem] truncate">{item.title}</span>
-                            </div>
+                              <p className="mt-1 truncate text-[10px] font-semibold text-ink/60">{item.title}</p>
+                            </Link>
                         ))}
                       </div>
                     </div>
@@ -589,6 +574,7 @@ export default function ProfilePage() {
               </div>
           )}
         </section>
+
 
         <section className="space-y-3">
           <h2 className="font-display text-2xl text-forest">{t("profile.listings.title")}</h2>
@@ -618,12 +604,17 @@ export default function ProfilePage() {
                                 setListingErr(t("profile.listings.inTrade"));
                                 return;
                               }
-                              if (!confirm(t("profile.listings.confirmDelete", { title: item.title }))) return;
+                              const ok = await confirm({
+                                title: t("toast.deleteItemTitle"),
+                                message: t("profile.listings.confirmDelete", { title: item.title }),
+                              });
+                              if (!ok) return;
                               setDeletingId(item.id);
                               try {
                                 await api(`/api/items/${item.id}`, { method: "DELETE" });
                                 setItems((prev) => prev.filter((i) => i.id !== item.id));
                                 loadSets();
+                                toast.success(t("toast.itemDeleted"));
                               } catch (e) {
                                 setListingErr(e instanceof Error ? e.message : t("common.error"));
                               } finally {
