@@ -9,26 +9,6 @@
     <meta name="theme-color" content="#8B7CFF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Retoy" />
-    <script>
-      // A page kept from an older deploy asks for build files that no longer
-      // exist: reload once to pick up the current build instead of a white screen.
-      window.addEventListener(
-        "error",
-        function (e) {
-          var el = e.target;
-          var url = el && (el.src || el.href);
-          if (!url || url.indexOf("/assets/") === -1) return;
-          try {
-            if (sessionStorage.getItem("asset-reload")) return;
-            sessionStorage.setItem("asset-reload", "1");
-          } catch (_) {
-            return;
-          }
-          location.reload();
-        },
-        true,
-      );
-    </script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <title>Retoy — весёлый обмен игрушками</title>
     <meta
