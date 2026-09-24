@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, CheckCircle2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type ToastKind = "success" | "error";
@@ -35,8 +35,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((list) => list.filter((t) => t.id !== id)), TOAST_MS);
   }, []);
 
-  const dismiss = useCallback((id: number) => setToasts((list) => list.filter((t) => t.id !== id)), []);
-
   const confirm = useCallback(
     (options: ConfirmOptions) =>
       new Promise<boolean>((resolve) => {
@@ -62,7 +60,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext.Provider value={api}>
       {children}
-      {createPortal(<ToastStack toasts={toasts} onDismiss={dismiss} />, document.body)}
+      {createPortal(<ToastStack toasts={toasts} />, document.body)}
       {dialog && createPortal(<ConfirmSheet {...dialog} onClose={close} />, document.body)}
     </FeedbackContext.Provider>
   );
@@ -74,49 +72,30 @@ export function useFeedback(): FeedbackApi {
   return ctx;
 }
 
-function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
-  const { t: tr } = useTranslation();
+function ToastStack({ toasts }: { toasts: Toast[] }) {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed right-3 z-[80] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col items-end gap-2 sm:right-5"
-      // top-right, just under the sticky header (and Telegram's fullscreen controls)
+      className="pointer-events-none fixed inset-x-0 z-[80] flex flex-col items-center gap-2 px-4"
+      // just under the sticky header (and Telegram's fullscreen controls)
       style={{ top: "calc(var(--app-inset-top) + 4.25rem)" }}
     >
-      {toasts.map((t) => {
-        const error = t.kind === "error";
-        return (
-          <div
-            key={t.id}
-            role={error ? "alert" : "status"}
-            className="pointer-events-auto relative flex w-full animate-toast items-center gap-3 overflow-hidden rounded-2xl bg-white py-3 pl-3 pr-2 shadow-[0_14px_36px_rgba(23,21,31,0.18)] ring-1 ring-ink/[0.06]"
-          >
-            <span
-              className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
-                error ? "bg-coral/15 text-coral" : "bg-forest/15 text-forest"
-              }`}
-            >
-              {error ? <AlertCircle size={19} strokeWidth={2.4} /> : <CheckCircle2 size={19} strokeWidth={2.4} />}
-            </span>
-            <span className="min-w-0 flex-1 text-sm font-bold leading-snug text-ink">{t.text}</span>
-            <button
-              type="button"
-              aria-label={tr("common.close")}
-              onClick={() => onDismiss(t.id)}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink/35 transition hover:bg-ink/5 hover:text-ink/70"
-            >
-              <X size={16} />
-            </button>
-            {/* time left until it disappears */}
-            <span
-              className={`absolute bottom-0 left-0 h-[3px] w-full origin-left animate-toast-timer ${
-                error ? "bg-coral" : "bg-forest"
-              }`}
-              style={{ animationDuration: `${TOAST_MS}ms` }}
-            />
-          </div>
-        );
-      })}
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          role={t.kind === "error" ? "alert" : "status"}
+          className={`pointer-events-auto flex max-w-sm animate-toast items-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-bold shadow-[0_12px_32px_rgba(23,21,31,0.22)] ${
+            t.kind === "error" ? "bg-coral text-white" : "bg-ink text-cream"
+          }`}
+        >
+          {t.kind === "error" ? (
+            <AlertCircle size={18} className="shrink-0" />
+          ) : (
+            <CheckCircle2 size={18} className="shrink-0 text-sand" />
+          )}
+          <span className="min-w-0">{t.text}</span>
+        </div>
+      ))}
     </div>
   );
 }
