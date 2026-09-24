@@ -47,8 +47,12 @@ export default {
           "0%, 100%": { transform: "rotate(0deg)" },
           "50%": { transform: "rotate(-28deg)" },
         },
+        "toast-timer": {
+          "0%": { transform: "scaleX(1)" },
+          "100%": { transform: "scaleX(0)" },
+        },
         toast: {
-          "0%": { opacity: "0", transform: "translateY(-12px) scale(0.96)" },
+          "0%": { opacity: "0", transform: "translateX(24px) scale(0.96)" },
           "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
         },
         pop: {
@@ -63,7 +67,8 @@ export default {
         wiggle: "wiggle 0.7s ease-in-out infinite",
         wave: "wave 0.8s ease-in-out infinite",
         pop: "pop 1.4s ease-in-out infinite",
-        toast: "toast 0.28s cubic-bezier(0.22, 1.2, 0.36, 1) both",
+        toast: "toast 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both",
+        "toast-timer": "toast-timer linear forwards",
       },
     },
   },
